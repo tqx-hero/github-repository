@@ -1,0 +1,38 @@
+1、拉取nginx镜像（此处默认为最新发行版本，可根据自身要求修改）：docker pull nginx 
+2、查看docker内已下载的镜像： docker images
+3、删除 IMAGE ID为5cdef4ac3335（或镜像名也可以）的镜像： docker rmi 5cdef4ac3335(此处可换为镜像名)
+4、运行docker下IMAGE ID为5cdef4ac3335（或镜像名也可以）的镜像：docker run -d 5cdef4ac3335（或镜像名也可以）
+5、查看docker下运行种的容器：docker ps
+5、查看docker下所有的容器：docker ps -a
+6、运行docker下IMAGE ID为5的nginx镜像，并将nginx的80端口与宿主机80端口映射： docker run -d -p 80:80 5 
+7、运行docker下IMAGE ID为5的nginx镜像，并将nginx的80端口与宿主机80端口映射,同时绑定宿主机文件夹/usr/nginx/html与容器中文件夹/usr/share/nginx/html映射：
+docker run -d  -p 80:80 -v /usr/nginx/html(可换为挂载卷):/usr/share/nginx/html 5
+8、删除容器ID为100的容器： docker rm -f 100
+9、给docker创建挂载卷nginx_html： docker volume create nginx_index
+10、查看挂载卷nginx_index在宿主机的位置：docker volume inspect nginx_index
+11、查看创建过的所有挂载卷：docker volume list
+12、删除挂载卷nginx_index：docker volume rm nginx_index
+13、删除所有没有任何容器所使用的挂载卷：docker volume prune -a
+14、创建MongoDB并设置初始账号admin和密码123456：
+docker run --name mongo -d -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=123456 mongo
+15、创建alpine并进入界面交互（-it），退出后删除容器（--rm）【测试用】： docker run -it --rm alpine
+15、重启ID为100的容器：docker restart 100
+16、创建nginx并设置重启策略（always：容器停止立即重启；unless-stopped:手动重启的容器不会尝试重启,多用于生产环境）:
+docker run -d --restart always(unless-stopped) nginx;
+17、停止容器ID为100的容器： docker stop 100（或容器名）
+18、重新启动ID为100的容器：docker start 100(或容器名)
+19、查看ID为100的容器基本配置信息：docker inspect 100(或容器名)
+20、创建docker容器但不启动(与run用法一样，但不立即启动，启动可使用start命令)：docker create .......
+21、查看ID为100的容器日志：docker logs 100  
+22、查看ID为100的容器日志，并实时刷新：docker logs 100 -f
+23、查看docker内ID为100的容器进程情况(格式为docker exec containID linux指令)：docker exec 100 ps -ef 
+24、进入ID为100的容器内进行调试：docker exec -it 100 bash
+25、查询linux系统发行版本：cat /etc/os-release
+26、展示所有docker的链接网络：docker network list
+26、构建DockerFile的镜像：进入DockerFile所在目录，然后docker build --no-cache -t 镜像名 .
+27、compose方法创建docker容器：  
+	a、创建docker-compose.yaml
+	b、启动compose：   docker compose -f （docker-compose.yaml文件地址） up -d  
+28、停止并删除所有compose容器： docker compose down
+29、只停止不删除compose容器：docker compose stop
+30、重启停止状态的compose容器：docker compose start

@@ -1,0 +1,5 @@
+1、启动nifi： ./nifi.sh start
+2、关闭：./nifi.sh stop
+3、重启：./nifi.sh restart
+4、状态： ./nifi.sh status
+5、查看nifi日志：tail -f ../logs/nifi-app.log

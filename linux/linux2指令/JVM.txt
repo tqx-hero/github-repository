@@ -1,0 +1,36 @@
+1、根据进程ID查看JVM内存使用情况（包括堆、元空间）%形式：
+jstat（监控 JVM 的内存、GC、类加载等状态） -gcutil（百分比形式输出） -h20（输出 20 行数据后，重新打印一次列头） 128455（进程ID） 1000（1秒输出一次） 10（表示打印多少行，不加一直打印）
+
+输出内容如下：
+  S0     S1     E      O      M     CCS    YGC     YGCT    FGC    FGCT     GCT   
+  0.00  50.00  30.00  40.00  90.00  85.00    123    1.500     5    2.000    3.500
+  0.00  50.00  35.00  40.00  90.00  85.00    123    1.500     5    2.000    3.500
+  0.00  50.00  40.00  40.00  90.00  85.00    123    1.500     5    2.000    3.500
+  ...（输出20行后重新打印列头）...
+  S0     S1     E      O      M     CCS    YGC     YGCT    FGC    FGCT     GCT   
+  0.00  50.00  45.00  40.00  90.00  85.00    123    1.500     5    2.000    3.500
+  
+  
+ 其中s0、s1为Survivor两个区；
+ E为eden
+ O：老年代old
+ M：MetaSpace 元空间
+ CCS：Compressed Class Space类压缩空间，若CCS超高（>60%），可能会导致full gc，这时就要看看JVM配置的参数有没有设置CCS的大小（默认1G），若设置的太小适当调高(不能设置太高)，设置正常就要看看有没有类加载泄露的问题
+	# 关键参数：设置CCS的最大内存（根据业务调整，建议先设为2G）
+	-XX:CompressedClassSpaceSize=2g
+
+	# 配合元空间参数（避免Metaspace本身不足）
+	-XX:MetaspaceSize=256m  # 元空间初始触发GC的阈值（默认21M，调大减少初始GC）
+	-XX:MaxMetaspaceSize=4g # 元空间最大上限（建议设为4G，避免无限制占用物理内存）
+
+
+YGC:young gc的次数
+YGCT：young gc的总耗时（算平均就/YGC）
+FGC：full gc次数
+FGCT：full gc的总耗时（算平均就/FGC）
+GCT：GC总耗时（YGCT+FGCT）
+
+
+2、查看堆内存使用情况：
+jdk9+： jhsdb jmap --heap --pid 128455（项目进程号）
+jdk8 ： jmap -heap 进程号 

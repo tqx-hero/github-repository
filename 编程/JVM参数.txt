@@ -1,0 +1,38 @@
+-------------------------1.9之后的---------------------
+G1：
+-XX:+ExplicitGCInvokesConcurrent	让System.gc()触发并发 GC（而非阻塞式 Full GC），G1 下该参数会引导显式 GC 走向 Mixed GC 逻辑
+-XX:+ExplicitGCInvokesConcurrentAndUnloadsClasses	在上一参数基础上，增加 “卸载无用类” 的能力（可选，根据业务需求）
+-XX:-DisableExplicitGC	确保显式 GC 调用不被禁用（必须显式关闭，因为默认是开启的，若之前配过DisableExplicitGC需取消）
+-XX:+UseG1GC	强制使用 G1GC（JDK 11 默认，但建议显式指定，避免环境差异）
+
+2. 辅助参数（优化 Mixed GC 行为，可选）
+为了让 Mixed GC 更符合预期，可搭配 G1 的 Mixed GC 调优参数：
+参数	作用
+-XX:G1MixedGCCountTarget=8	设置一次新生代 GC 后，最多执行 8 次 Mixed GC（默认 8，可调整）
+-XX:G1OldCSetRegionThresholdPercent=10	设置 Mixed GC 时老年代回收的最大比例（默认 10%，控制单次 Mixed GC 回收的老年代范围）
+-XX:G1MixedGCLiveThresholdPercent=85	老年代 Region 存活对象占比低于 85% 时才会被纳入 Mixed GC（默认 85%，可降低该值让更多老年代 Region 参与回收）
+
+三、完整参数示例（可直接复制使用）
+bash
+运行
+# 基础版：仅让显式GC触发Mixed GC
+java -XX:+UseG1GC -XX:+ExplicitGCInvokesConcurrent -XX:-DisableExplicitGC -jar your-app.jar
+
+# 增强版：增加类卸载+调优Mixed GC行为
+java -XX:+UseG1GC \
+     -XX:+ExplicitGCInvokesConcurrent  \
+     -XX:-DisableExplicitGC \
+     -XX:G1MixedGCCountTarget=8 \
+     -XX:G1OldCSetRegionThresholdPercent=10 \
+     -XX:G1MixedGCLiveThresholdPercent=85 \
+     -jar your-app.jar
+	 
+	 
+	 
+--------------------------1.8-------------------------------------------
+java -jar your.jar \
+-Xms512m -Xmx512m \
+-XX:+PrintGCDetails \       # 打印详细GC信息
+-XX:+PrintGCDateStamps \    # 打印GC发生的日期时间（如 2026-03-07T10:00:00.123+0800）
+-XX:+PrintGCTimeStamps \    # 打印GC发生的相对时间
+-Xloggc:./gc.log   

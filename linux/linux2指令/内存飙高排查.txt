@@ -1,0 +1,12 @@
+内存彪高的问题排查：
+内存突然飚高，一个是短时间内创建了大量的对象，gc来不及回收，再就是排查是否有内存泄漏的问题
+命令如下：
+A、top，然后按m，找到%mem（内存占用情况）占比高的进程PID
+B、jstat -gc  PID 1000（这里1000指1秒刷新一次） 10（这里10代表打印几次，不加就会持续打印） ,重点关注老年代（OC（老年代总大小）和OU（老年代已用大小）），
+C、若老年代利用率只高不低，大概率是内存泄漏。使用：
+jmap -histo 进程PID | head -20(这里指前20)
+来查看项目中哪个对象类型占用内存高
+D、若项目JVM参数有配置（-XX:+HeapDumpOnOutOfMemoryError，指OOM时打印堆日志文件.hprof）这个，直接导出.hprof文件到本地用visual VM查看分析。若没有配置，且项目没有down，使用命令：
+jmap -dump:live,file=/home/project/dump/oom.hprof 进程PID
+生成一个hprof文件，里面是存活的对象，下载到本地。
+E、用jvisualVM工具打开文件，分析size占比最大的实例，查看引用链，找到出问题的地方。

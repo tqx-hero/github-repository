@@ -1,0 +1,4 @@
+1、top 命令 查看CPU占有率高的进程  PID = 123
+2、找到PID进程下占用高的线程PID： top -H -p 进程ID
+3、将线程的PID转换为16进制 假如=0x133d5     ：printf "0x%x\n" 线程PID
+4、命令： jstack 进程PID | grep 线程PID的16进制 -A 20 （后面的数字显示行数）

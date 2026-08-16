@@ -1,0 +1,9 @@
+查看网络连接，端口监听状态：netstat -natp
+监听指定端口号的网络状态，抓取传输层/网络层的数据包：tcpdump -nn -i ens33(换成自己的网卡名) port 9090
+查看进程打开的文件、端口、socket等详细信息，（文件描述符FD）：lsof -p 1234(进程PID)
+查看哪个进程使用的端口号8080： lsof -i :8080    
+追踪程序底层调用，如追踪已运行的java进程(strace会挂住这个进程，直接kill -9 杀不掉，需要先用 ps aux | grep PID找到strace进程杀掉) ： strace -ff -o trace_log -p PID 
+显示文件的行号： vim 文件 ; esc ;输入：set nu
+查找文件下匹配某个字段，如查找num的位置： vim 文件; /num
+查看进程的文件描述符的最大数量： cat /proc/PID/limits
+查看连接终端的文件描述符的最大数量：ulimit -n

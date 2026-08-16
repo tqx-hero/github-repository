@@ -1,0 +1,89 @@
+1、备份数据库： mysqldump -uroot -p123456 haihui > /dev/mysqlbackup/haihui_$(date +%Y%m%d_%H%M%S).sql
+2、常规删除a.txt文件:rm a.txt
+3、强行删除file.log文件：rm -f file.log
+4、删除dirname目录下的所有东西：rm -R dir dirname
+    强制删除/var/log/httpd/access文件夹以及其下面所有的文件：rm -rf  /var/log/httpd/access
+5、查看所有进程里 CMD 是 java 的进程信息： ps -ef | grep java
+6、显示所有进程：ps -aux | grep java
+7、强制删除进程：kill -9 进程数
+8、启动java进程：nohup java -jar shareniu.jar &
+8.启动jar项目并把错误日志发送到error.log内：nohup java -jar demo-0.0.1-SNAPSHOT.jar > log/demo.log 2> log/demo-error.log &
+8、设置JVM参数版本启动jar：
+nohup java -Xmx512m -Xms512m -XX:MetaspaceSize=216m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/home/project/log/ 
+-Xlog:gc*:file=/home/project/log/gc/gc.log:time,uptime:filecount=5,filesize=100M -XX:+ExplicitGCInvokesConcurrent 
+-XX:-DisableExplicitGC -XX:+UseG1GC -jar demo-0.0.1-SNAPSHOT.jar > log/demo.log 2> log/demo-error.log &
+9、删除文件夹：rm -rf /var/log/httpd/access
+10、创建文件夹：mkdir test    mkdir -p /home/test
+新建文件test.log：vi test.log 
+11、解压缩a.zip文件：unzip all.zip 
+11、解压war包： unzip pay.war -d /home/zookeeper1/test/pay
+12、把all文件夹压缩成zip文件：zip -r -o all.zip all/
+13、关闭tomcat ：sh shutdown.sh
+14、开启tomcat: sh startup.sh
+14、后台启动：nohup  sh setup.sh & 
+14、下载filename文件：sz filename
+15、查看被占用的端口8080: netstat -tunlp | grep 8080
+16、解压tar.gz文件:tar -zxvf java.tar.gz
+17、解压tar.gz文件到指定目录(java)下：tar -zxvf java.tar.gz  -C /usr/java
+17、压缩成tar.gz:  tar -zcvf 文件名.tar.gz 要压缩的文件/文件夹
+18、redis启动：找到redis-server，然后./redis-server ../redis.conf
+17、解压bz2文件：tar -xjvf file.tar.bz2 
+18、gz文件解压：gzip -b java.gz
+19、打开文件 vim /etc/hosts
+19、删除文件夹下所有东西：rm -rf *
+20、修改文件：insert键
+21、保存文件：    :wq
+22、①、创建用户：useradd username；②、给用户创建密码：passwd username
+21、复制文件夹下bin的所有文件到redis01下（redis01若不存在则自动创建）：cp -r redis/bin/ redis-cluster/redis01
+21、查看开机自启动程序：chkconfig
+21、centOS7关闭防火墙并禁止开机自启动：
+		systemctl stop firewalld.service            #停止firewall
+		systemctl disable firewalld.service        #禁止firewall开机启动
+22、强制保存:       :wq!
+22、清空file文件内容:cat /dev/null > file
+23、将etc整个文件夹以及其下面的文件赋予weblogic用户: chown -R weblogic:root /etc
+24、显示文件夹下各文件的大小：ls- lh
+24、查看6379端口是否对外开放（防火墙）：firewall-cmd --query-port=6379/tcp
+24、防火墙对外开放7001端口：firewall-cmd --add-port=123/tcp --permanent
+24、IDEA把sso-server项目打成war包：①、cd sso-server，②、mvn install clean package
+25、创建定时任务，每五分钟执行一次(/home/application/spark/run.sh)： 先执行crontab -e 然后添加 */5 * * * * /home/application/spark/run.sh
+#############################对nginx操作#########################
+12.启动nginx (nginx安装目录地址 -c nginx配置文件地址) ：/usr/local/nginx/sbin/nginx -c  /usr/local/nginx/conf/nginx.conf
+13、nginx修改配置后重新加载生效：nginx -s reload
+14、nginx重新打开日志文件：nginx -s reopen
+15、测试nginx配置文件是否正确 ：nginx -t -c /path/to/nginx.conf
+16、启动操作 -c参数指定了要加载的nginx配置文件路径：nginx -c /usr/local/nginx/conf/nginx.conf
+17、查询nginx主进程号：ps -ef | grep nginx
+18、切换用户： root到test（注意-与test之间有空格）：su - test； test 到root ：su
+19、给用户添加home文件权限：chmod 755 /home
+20、给用户取消home权限:chmod 600 /home
+21、给所有用户针对home添加所有权限（包括读、写、可执行的权限，该语句需在root用户登录执行）：chmod u=rwx,g=rwx,o=rwx /home/
+22、linux上添加git项目：git clone git@192.168.1.13:/home/data/Industrial_Internet.git
+23、下载linux项目到本地：git clone git@192.168.1.13:/home/data/git/Industrial_Internet.git
+24、# 将目录/opt 及其下面的所有文件、子目录的文件主改成 liuhai
+chown -R liuhai:liuhai /opt
+24、安装rpm包：rpm -ivh foo-1.0-l.i386.rpm
+24、搜索大于500M的文件：find / -type f  -size +500M 
+25、同步时间与147.12.68.1 ： ntpdate -u 147.12.68.1
+25、nacos单机启动：sh startup.sh -m standalone
+24、linux创建git仓库：
+①、设置 /home/data/git/gittest.git 为 Git 仓库，然后把 Git 仓库的 owner 修改为 git：
+[root@localhost home]# mkdir -p data/git/gittest.git
+[root@localhost home]# git init --bare data/git/gittest.git
+Initialized empty Git repository in /home/data/git/gittest.git/
+[root@localhost home]# cd data/git/
+[root@localhost git]# chown -R git:git gittest.git/
+
+②、进入 Git Bash 命令行客户端，创建项目地址（设置在 d:/wamp64/www/gittest_gitbash）并进入。
+③、然后从 Linux Git 服务器上 clone 项目：$ git clone git@192.168.56.101:/home/data/gittest.git
+
+25、修改环境变量：
+在/etc/profile文件中添加变量【对所有用户生效(永久的)】
+
+　　用VI在文件/etc/profile文件中增加变量，该变量将会对Linux下所有用户有效，并且是“永久的”。
+
+　　要让刚才的修改马上生效，需要执行以下代码
+
+　　# source /etc/profile
+
+C:\Windows\SysWOW64\config\systemprofile\AppData\Roaming

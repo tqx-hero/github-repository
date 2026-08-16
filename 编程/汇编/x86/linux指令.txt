@@ -1,0 +1,45 @@
+1、编译t3.asm：
+	nasm -f elf32 -g t3.asm -o t3.o
+2、连接：
+	ld -m elf_i386 t3.o -o t3
+3、执行：
+	./t3
+	
+4、Linux下通过gdb调试
+	下载gdb：
+		yum install gdb -y
+开始调试：
+	gdb ./t3
+设置调试布局，显示寄存器、汇编代码以及命令行
+layout asm
+layout regs
+
+常用指令：
+echo $?		可以直接打出ebx内的值，将结果存入ebx即可直接显示出来
+run 或者 start        从入口 _start 开始停住
+layout asm   分屏：上面汇编代码，下面命令行（必开）
+layout regs  再加上寄存器窗口
+ni或者 nexti        单步执行一条汇编指令（不跳进调用）
+si或者 stepi        单步，遇到int 0x80/函数会跳进去
+break 标号   断点：b _start   b case_big
+break *偏移地址
+info reg     看所有寄存器 eax ebx ecx edx eflags
+print $eax   单独看某个寄存器
+x/10c 地址   查看内存字符串
+continue     跑到下一个断点
+quit         退出gdb
+
+
+。。。。。。linux下gcc编译c文件生成可执行文件
+ gcc -g -O0 leet643.c -o main
+ 
+ //////////////反汇编
+ objdump -M intel,nasm -d main
+ 
+ 
+ 混合编译汇编与C：
+ 
+ nasm -f elf32 asm_add.asm -o asm_add.o
+gcc -m32 -c main.c -o main.o
+gcc -m32 -no-pie main.o asm_add.o -o run
+./run

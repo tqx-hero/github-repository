@@ -151,4 +151,5 @@ add_executable(cpp main.cpp
         leet/初级算法/其他/杨辉三角.cpp
         leet/初级算法/其他/有效的括号.cpp
         leet/初级算法/其他/缺失数字.cpp
+        leet/栈/递增顺序搜索树-LCR052.cpp
 )

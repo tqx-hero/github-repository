@@ -30,5 +30,5 @@ pthread_poll_t * pthread_poll_create(int poll_size);
 
 //提交任务
 int pthread_poll_submit(pthread_poll_t * pthread_poll,func_type func,void* arg);
-
+//销毁线程池
 int pthread_poll_destory(pthread_poll_t* thread_poll_ptr,int mode);

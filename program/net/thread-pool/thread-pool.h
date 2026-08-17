@@ -22,13 +22,13 @@ typedef struct {
 	pthread_cond_t  not_empty;
 	int state; //线程池状态：0、正常；1、正常关闭；2、立即关闭
 	pthread_t thread_arr[];// 线程数组-柔性
-} pthread_poll_t;
+} pthread_pool_t;
 
 
 //创建线程池
-pthread_poll_t * pthread_poll_create(int poll_size);
+pthread_pool_t * pthread_pool_create(int pool_size);
 
 //提交任务
-int pthread_poll_submit(pthread_poll_t * pthread_poll,func_type func,void* arg);
+int pthread_pool_submit(pthread_pool_t * pthread_pool,func_type func,void* arg);
 //销毁线程池
-int pthread_poll_destory(pthread_poll_t* thread_poll_ptr,int mode);
+int pthread_pool_destory(pthread_pool_t* thread_pool_ptr,int mode);

@@ -1,4 +1,4 @@
-#include "thread-poll.h"
+#include "thread-pool.h"
 /**
  *线程池测试用例
  *
@@ -11,13 +11,13 @@ void* print_message(void * arg){
 }
 
 int main(int argc ,char ** argv,char ** env){
-	pthread_poll_t * poll = pthread_poll_create(0);
-	if(!poll)
+	pthread_pool_t * pool = pthread_pool_create(0);
+	if(!pool)
 		exit(-1);
 	char *message=argv[1];
 	for(int i=0;i<100;++i){
-		pthread_poll_submit(poll,print_message,message);
+		pthread_pool_submit(pool,print_message,message);
 	}
-	pthread_poll_destory(poll,1);
+	pthread_pool_destory(pool,1);
 	return 0;
 }

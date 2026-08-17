@@ -1,4 +1,5 @@
 #include "thread-pool.h"
+#include <sys/syscall.h>
 /**
  *线程池测试用例
  *
@@ -6,8 +7,8 @@
 
 void* print_message(void * arg){
 	char * message = (char *)arg;
-	pthread_t pid = pthread_self();
-	printf(" [%lu] : %s\n",pid,message);
+	pid_t pid = syscall(SYS_gettid);
+	printf(" [%d] : %s\n",pid,message);
 }
 
 int main(int argc ,char ** argv,char ** env){

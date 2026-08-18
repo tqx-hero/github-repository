@@ -52,10 +52,10 @@ public:
     }
 };
 
-int main() {
-    string s = "())";
-    // string s = "(((";
-    Solution sl;
-    cout << sl.minAddToMakeValid(s) << endl;
-    return 0;
-}
+// int main() {
+//     string s = "())";
+//     // string s = "(((";
+//     Solution sl;
+//     cout << sl.minAddToMakeValid(s) << endl;
+//     return 0;
+// }

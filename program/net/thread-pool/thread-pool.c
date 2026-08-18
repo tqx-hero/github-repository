@@ -108,7 +108,12 @@ int pthread_pool_destory(pthread_pool_t* thread_pool_ptr,int mode){
 	for(int i=0;i < pool_size;++i)
 		pthread_join(thread_pool_ptr->thread_arr[i],NULL);
 	//释放持有的资源
-	free(thread_pool_ptr->head);
+	task_t * cur = thread_pool_ptr->head;
+	while(cur){
+		task_t * nt = cur->next;
+		free(cur);
+		cur = nt;
+	}
 	thread_pool_ptr->head = thread_pool_ptr->tail =NULL;
 	pthread_cond_destroy(&thread_pool_ptr->not_empty);
 	pthread_mutex_destroy(&thread_pool_ptr->lock_t);

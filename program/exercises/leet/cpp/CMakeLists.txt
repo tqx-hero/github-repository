@@ -152,6 +152,5 @@ add_executable(cpp main.cpp
         leet/初级算法/其他/有效的括号.cpp
         leet/初级算法/其他/缺失数字.cpp
         leet/栈/递增顺序搜索树-LCR052.cpp
-        leet/每日一题/找出最大的几近缺失的整数-3471.cpp
-        leet/栈/使括号有效的最少添加.cpp
+        leet/每日一题/安排电影院座位-1386.cpp
 )

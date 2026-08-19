@@ -153,4 +153,5 @@ add_executable(cpp main.cpp
         leet/初级算法/其他/缺失数字.cpp
         leet/栈/递增顺序搜索树-LCR052.cpp
         leet/每日一题/安排电影院座位-1386.cpp
+        leet/栈/使字符串平衡的最小交换次数-1963.cpp
 )

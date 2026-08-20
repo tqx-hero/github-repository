@@ -42,15 +42,34 @@ int main(int argc,char** argv,char** env){
 	uint16_t pro_type;
 	char *pro_type_str;
 	void parse_ip_addr(int,void*,void*,void*,int);
+	//传输层协议类型
 	char * trans_type;
+	unsigned char tran_t;
+	//IP首部长度、ip分组长度、传输层数据包总长度、传输层数据载荷长度
+	uint32_t ip_head_length,ip_package_length,trans_package_length,trans_payload_legth;
+	//源端口与目的端口
+	uint16_t src_port,dst_port;
 	while(1){
 		//获取以太网帧数据
 		int recv_len = recvfrom(sfd,message_buffer,sizeof(message_buffer),0,NULL,NULL);
-		//解析源MAC与目的MAC地址
+		//2、第二种方法解析源MAC与目的MAC地址
 		memcpy(dst_mac,message_buffer,MAC_ADDR_SIZE);
 		memcpy(src_mac,message_buffer+6,MAC_ADDR_SIZE);
 		//解析网络层协议类型
 		pro_type = ntohs(*(uint16_t*)(message_buffer+12));
+		//获取IP首部长度
+		ip_head_length = ((uint32_t)message_buffer[14] & 0xF) <<2;
+		printf("IP首部长度=%d\n",ip_head_length);
+		//获取IP分组长度
+		ip_package_length = ntohs(*(uint16_t*)(message_buffer+16));
+		printf("IP分组总长度=%d\n",ip_package_length);
+		//计算传输层数据包总长度：
+		trans_package_length = ip_package_length - ip_head_length;
+		//获取传输层协议首部起始位置
+		int begin_idx = 14+ip_head_length;
+		//解析2个端口号
+		src_port = ntohs(*(uint16_t*)(message_buffer+begin_idx));
+		dst_port = ntohs(*(uint16_t*)(message_buffer+begin_idx+2));
 		if(pro_type == 0x0800){
 			pro_type_str = "IPV4";
 			parse_ip_addr(PRO_TYPE_IPV4,(void*)message_buffer,(void*)src_ip,(void*)dst_ip,INET_ADDRSTRLEN);
@@ -62,15 +81,35 @@ int main(int argc,char** argv,char** env){
 		else 
 			pro_type_str = "undefined";
 		printf("协议类型：%s\n",pro_type_str);
-		printf("MAC: %x:%x:%x:%x:%x:%x  >>  %x:%x:%x:%x:%x:%x\n",
+		//1、可直接使用内存足够的数组来存放拼接好的MAC地址
+		/*
+		unsigned char src_mac_buf[18],dst_mac_buf[18];
+		sprintf(dst_mac_buf,"%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",message_buffer[0],message_buffer[1],message_buffer[2],message_buffer[3],
+				message_buffer[4],message_buffer[5]);
+		sprintf(src_mac_buf,"%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",message_buffer[6],message_buffer[7],message_buffer[8],message_buffer[9],
+				message_buffer[10],message_buffer[11]);
+		printf("MAC: %s >> %s\n",src_mac_buf,dst_mac_buf); 
+		*/
+		//2、也可通过下面方式打印MAC地址，或者使用sprintf将MAC地址组包，以:分隔逐个字符放入一个够大的字符数组中
+		printf("MAC: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  >>  %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
 				src_mac[0],src_mac[1],src_mac[2],src_mac[3],src_mac[4],src_mac[5],
 				dst_mac[0],dst_mac[1],dst_mac[2],dst_mac[3],dst_mac[4],dst_mac[5]
 				);
-		printf("IP: %s >> %s\n",src_ip,dst_ip);
-		unsigned char tran_t = *(message_buffer+23);
-		if(tran_t == 6)
+		printf("IP: [%s:%d] >> [%s:%d]\n",src_ip,src_port,dst_ip,dst_port);
+		//获取传输层协议类型(TCP/UDP)，1个字节
+		tran_t = message_buffer[23];
+		if(tran_t == 0x06){
 			trans_type ="TCP";
-		else if(tran_t == 17)
+			//解析TCP首部长度
+			uint32_t tcp_header_legth = (message_buffer[begin_idx+12] & 0xf0) >> 2;
+			printf("TCP首部长度=%d\n",tcp_header_legth);
+			//计算传输层数据载荷部分长度：
+			trans_payload_legth = trans_package_length - tcp_header_legth;
+			printf("应用层数据包总长度：%d\n",trans_package_length);
+			//尝试打印应用层数据信息
+			//printf("应用层数据：%s\n",message_buffer+begin_idx+tcp_header_legth);	
+		}
+		else if(tran_t == 0x11)
 			trans_type ="UDP";
 		printf("传输层协议: %s\n",trans_type);
 	}

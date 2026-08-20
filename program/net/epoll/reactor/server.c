@@ -19,7 +19,7 @@ typedef struct {
 	func_type func_handler;
 	void* arg;
 }reactor_t;
-
+//各事件触发后回调函数的参数
 typedef struct {
 	int epfd;
 	int con_fd;
@@ -100,7 +100,7 @@ int main(){
 	close(lfd);
 	return 0;
 }
-
+//申请套接字连接信息的结构体
 con_sock_t* malloc_consock_t(const con_sock_t* params){
 	con_sock_t* cst =  malloc(sizeof(con_sock_t));
 	if(!cst){
@@ -114,7 +114,7 @@ con_sock_t* malloc_consock_t(const con_sock_t* params){
 	memcpy(cst->cli_ip,params->cli_ip,INET_ADDRSTRLEN);
 	return cst;
 }
-
+//申请反应堆的结构体
 reactor_t * malloc_reactor_t(int con_fd,func_type func_handler,void* arg){
 	reactor_t* reactor =  malloc(sizeof(reactor_t));
 	if(!reactor){
@@ -178,7 +178,6 @@ void * reactor_listen(void* arg){
 }
 
 //需要修改arg参数为一个结构体：结构体分别存放当前套接字cur_fd与epoll根节点的描述符epfd
-
 void * deal_with_socket(void *arg){
 	con_sock_t * con_sock = (con_sock_t*) arg;
 	if(!con_sock)

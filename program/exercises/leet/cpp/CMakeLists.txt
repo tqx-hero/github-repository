@@ -157,4 +157,5 @@ add_executable(cpp main.cpp
         leet/每日一题/将元素分配到两个数组中-3069.cpp
         leet/树/最大二叉树-654.cpp
         leet/字符串/有效的括号字符串-678.cpp
+        leet/栈/从字符串中移除星号-2390.cpp
 )

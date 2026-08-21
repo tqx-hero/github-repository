@@ -158,4 +158,6 @@ add_executable(cpp main.cpp
         leet/树/最大二叉树-654.cpp
         leet/字符串/有效的括号字符串-678.cpp
         leet/栈/从字符串中移除星号-2390.cpp
+        leet/栈/有小括号的嵌套深度-1111.cpp
+        leet/树/叶值最小代价生成树-1130.cpp
 )

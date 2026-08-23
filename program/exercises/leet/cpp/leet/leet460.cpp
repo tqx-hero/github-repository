@@ -62,6 +62,7 @@ lfu.get(4);      // 返回 4
  */
 #include <iostream>
 #include <unordered_map>
+#include <vector>
 #define MAX_BUCKETS_CAPACITY 200001
 using namespace std;
 

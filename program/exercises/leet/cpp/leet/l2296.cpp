@@ -68,6 +68,7 @@ text 只含有小写英文字母。
 进阶：你能设计并实现一个每次调用时间复杂度为 O(k) 的解决方案吗？
  * @return
  */
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <utility>

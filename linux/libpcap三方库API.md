@@ -111,6 +111,7 @@
            uint32_t ip_addr,netmask_addr;
            uint8_t dev_name[DEV_NAME_SIZE];
    	} my_netdev_ipv4_t;
+   int get_netdev_info(pcap_if_t* head,my_netdev_ipv4_t* netinfo,int dev_size,char* errbuf);
     13 int main(){
     14
     15         //pcap_findalldevs函数的使用
@@ -121,32 +122,67 @@
     20                 printf("find all devs failure: %s\n",errbuf);
     21                 exit(-1);
     22         }
-        		my_netdev_ipv4_t net_info[5];
-    23        int cnt =0;
+        		my_netdev_ipv4_t dev_arr[DEV_MAX_SIZE];
+           int cnt;
+           if((cnt = get_netdev_info(root,dev_arr,DEV_MAX_SIZE,errbuf)) == -1){
+                   perror(errbuf);
+                   goto close_resource;
+           }
+           if(!cnt){
+                   perror("无可用设备");
+                   goto close_resource;
+           }
+          
+    36         pcap_freealldevs(head);
+    37
+    38         return 0;
+    39 }
+   
+   //获取网络设备的相关信息
+   int get_netdev_info(pcap_if_t* head,my_netdev_ipv4_t* netinfo,int dev_size,char* errbuf){
+           char* message;
+           //参数正确性校验
+           if(!dev_size){
+                   message = "dev_size can not be empty!";
+                   goto failure_exit;
+           }
+           if(!head){
+                   message = "no available net dev!";
+                   goto failure_exit;
+           }
+           if(!netinfo){
+                   message = "net dev arr address invalid!";
+                   goto failure_exit;
+           }
+           bzero(netinfo,dev_size*sizeof(my_netdev_ipv4_t));
+           int cnt =0;
            //过滤掉回环地址127与断开连接的
            bpf_u_int32 flag = PCAP_IF_LOOPBACK | PCAP_IF_CONNECTION_STATUS_DISCONNECTED;
            while(head && !(head->flags & flag) && cnt < dev_size){
-                   strcpy(netinfo[cnt].dev_name,head->name);
                    struct pcap_addr* haddr = head->addresses;
                    while(haddr){
+                           if(haddr->addr->sa_family != AF_INET)
+                                   goto goto_next;
                            uint32_t ip = ((struct sockaddr_in*)haddr->addr)->sin_addr.s_addr;
                            struct sockaddr* netmask = haddr->netmask;
                            if(!ip || !netmask)
                                    goto goto_next;
                            char ip_addr[INET_ADDRSTRLEN],netmask_addr[INET_ADDRSTRLEN];
                            netinfo[cnt].ip_addr = ip;
-                           netinfo[cnt].netmask_addr = ((struct sockaddr_in*)netmask)->sin_addr.s_addr;
+                           netinfo[cnt].netmask_addr =((struct sockaddr_in*)netmask)->sin_addr.s_addr;
                            break;
                    goto_next:
                            haddr = haddr->next;
                    }
-                   cnt++;
+                   if(netinfo[cnt].ip_addr)
+                           strcpy(netinfo[cnt++].dev_name,head->name);
                    head = head->next;
            }
-    36         pcap_freealldevs(head);
-    37
-    38         return 0;
-    39 }
+           return cnt;
+      failure_exit:
+                   strcpy(errbuf,message);
+                   return -1;
+   }
    ```
 
    

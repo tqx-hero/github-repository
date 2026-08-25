@@ -9,6 +9,8 @@ char errbuf[PCAP_ERRBUF_SIZE];
 int pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf);
 //释放malloc申请的链表节点。与上面的find函数配套使用，避免内存泄漏
 void pcap_freealldevs(pcap_if_t *alldevs);
+注意：
+	该示例演示不规范，具体可参看md文档、或者直接查看pcap的demo演示中get_netdev_info函数的操作!!!!!!!!!!!!
 */
 int main(){
 	

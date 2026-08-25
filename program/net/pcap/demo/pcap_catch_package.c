@@ -32,6 +32,8 @@ int main(int argc,char** argv,char** env){
 	pcap_if_t *root = NULL;
 	struct bpf_program* bfp_ptr =NULL;
 	pcap_t* pcap_handle = NULL;
+	//设置过滤器规则
+	const char* rule_str = "tcp and src host 192.168.1.7"; 
 	int state = pcap_findalldevs(&root,errbuf);
 	if(state == PCAP_ERROR){
 		perror(errbuf);
@@ -63,7 +65,6 @@ int main(int argc,char** argv,char** env){
 	//pcap_compile编译过滤器规则
 	struct bpf_program bfp;
 	bfp_ptr = &bfp;
-	const char* rule_str = ""; 
 	//const char* rule_str = "tcp and src host 192.168.1.7"; 
 	if(pcap_compile(pcap_handle,bfp_ptr,rule_str,0,ntohl(cur_dev.netmask_addr)) == -1){
 		perror(pcap_geterr(pcap_handle));
@@ -186,7 +187,9 @@ int get_netdev_info(pcap_if_t* head,my_netdev_ipv4_t* netinfo,int dev_size,char*
 	bpf_u_int32 flag = PCAP_IF_LOOPBACK | PCAP_IF_CONNECTION_STATUS_DISCONNECTED;
         while(head && !(head->flags & flag) && cnt < dev_size){
 		struct pcap_addr* haddr = head->addresses;
-                while(haddr && haddr->addr->sa_family == AF_INET){
+                while(haddr){ 
+			if(haddr->addr->sa_family != AF_INET)
+				goto goto_next;
                         uint32_t ip = ((struct sockaddr_in*)haddr->addr)->sin_addr.s_addr;
                         struct sockaddr* netmask = haddr->netmask;
                         if(!ip || !netmask)
@@ -198,7 +201,7 @@ int get_netdev_info(pcap_if_t* head,my_netdev_ipv4_t* netinfo,int dev_size,char*
                 goto_next:
                         haddr = haddr->next;
                 }
-		if(!netinfo[cnt].ip_addr)
+		if(netinfo[cnt].ip_addr)
 			strcpy(netinfo[cnt++].dev_name,head->name);
                 head = head->next;
         }

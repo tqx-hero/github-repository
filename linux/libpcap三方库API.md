@@ -50,6 +50,7 @@
    /**
    	1、alldevsp:指针pcap_if_t*所在地址，生成的链表头节点会放入该指针所在的地址中
    	2、errbuf：遇到错误时返回的错误信息地址
+   	返回值：0、成功获取（包括没有设备,获取的指针需要判空）；PCAP_ERROR：失败，errbuf中存放失败信息
    */
    int pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf);
    //释放malloc申请的链表节点。与上面的find函数配套使用，避免内存泄漏
@@ -105,6 +106,11 @@
     10 //释放malloc申请的链表节点。与上面的find函数配套使用，避免内存泄漏
     11 void pcap_freealldevs(pcap_if_t *alldevs);
     12 */
+       	//定义一个包含网卡信息的结构体  
+         typedef struct {
+           uint32_t ip_addr,netmask_addr;
+           uint8_t dev_name[DEV_NAME_SIZE];
+   	} my_netdev_ipv4_t;
     13 int main(){
     14
     15         //pcap_findalldevs函数的使用
@@ -115,18 +121,28 @@
     20                 printf("find all devs failure: %s\n",errbuf);
     21                 exit(-1);
     22         }
-    23         //过滤掉回环地址127与断开连接的
-    24         bpf_u_int32 flag = PCAP_IF_LOOPBACK | PCAP_IF_CONNECTION_STATUS_DISCONNECTED;
-    25         while(head && !(head->flags & flag)){
-    26                 printf("name:%s description:%s flag:%d\n",head->name,head->description,head->flags);
-    27                 while(head->addresses){
-    28                         char ip_addr[INET_ADDRSTRLEN];
-    29                         inet_ntop(AF_INET,&((struct sockaddr_in*)head->addresses->addr)-		      >sin_addr.s_addr,ip_addr,INET_ADDRSTRLEN);
-    31                         printf("ip : %s\n",ip_addr);
-    32                         head->addresses = head->addresses->next;
-    33                 }
-    34                 head = head->next;
-    35         }
+        		my_netdev_ipv4_t net_info[5];
+    23        int cnt =0;
+           //过滤掉回环地址127与断开连接的
+           bpf_u_int32 flag = PCAP_IF_LOOPBACK | PCAP_IF_CONNECTION_STATUS_DISCONNECTED;
+           while(head && !(head->flags & flag) && cnt < dev_size){
+                   strcpy(netinfo[cnt].dev_name,head->name);
+                   struct pcap_addr* haddr = head->addresses;
+                   while(haddr){
+                           uint32_t ip = ((struct sockaddr_in*)haddr->addr)->sin_addr.s_addr;
+                           struct sockaddr* netmask = haddr->netmask;
+                           if(!ip || !netmask)
+                                   goto goto_next;
+                           char ip_addr[INET_ADDRSTRLEN],netmask_addr[INET_ADDRSTRLEN];
+                           netinfo[cnt].ip_addr = ip;
+                           netinfo[cnt].netmask_addr = ((struct sockaddr_in*)netmask)->sin_addr.s_addr;
+                           break;
+                   goto_next:
+                           haddr = haddr->next;
+                   }
+                   cnt++;
+                   head = head->next;
+           }
     36         pcap_freealldevs(head);
     37
     38         return 0;
@@ -231,8 +247,8 @@
    //struct pcap_pkthdr:
    201 struct pcap_pkthdr {
    202         struct timeval ts;      /* time stamp */
-   203         bpf_u_int32 caplen;     /* length of portion present */
-   204         bpf_u_int32 len;        /* length this packet (off wire) */
+   203         bpf_u_int32 caplen;     /* length of portion present,捕获的包长度，解包以这个为准 */
+   204         bpf_u_int32 len;        /* length this packet (off wire)，包的总长度，不能以此为解包长度，因为长度可能会超过帧限定长度 */
    205 };
    ```
 
@@ -247,6 +263,7 @@
    	2、cnt：捕获包的次数。大于0则捕获该次数包后结束，置-1表示无限捕获
    	3、callback:回调函数，调用该函数对包进行处理
    	4、user：传入回调函数的参数
+   	返回值：成功0；失败或者被pcap_breakloop中断，返回PCAP_ERROR(-1的宏定义)
    */
    int pcap_loop(pcap_t *p, int cnt,pcap_handler callback, u_char *user);
    //回调函数声明：
@@ -270,7 +287,7 @@
 
    
 
-9. pcap_complie:
+9. pcap_compile:
 
    ```c
    //编译过滤规则

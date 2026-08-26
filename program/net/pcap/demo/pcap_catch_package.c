@@ -33,7 +33,8 @@ int main(int argc,char** argv,char** env){
 	struct bpf_program* bfp_ptr =NULL;
 	pcap_t* pcap_handle = NULL;
 	//设置过滤器规则
-	const char* rule_str = "tcp and src host 192.168.1.7"; 
+	//const char* rule_str = "tcp and src host 192.168.1.7"; 
+	const char* rule_str = "udp and src host 192.168.1.7"; 
 	int state = pcap_findalldevs(&root,errbuf);
 	if(state == PCAP_ERROR){
 		perror(errbuf);

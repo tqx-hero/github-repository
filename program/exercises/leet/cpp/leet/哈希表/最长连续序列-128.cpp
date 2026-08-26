@@ -96,11 +96,11 @@ public:
     }
 };
 
-int main() {
-    vector<int> nums{};
-    // vector<int> nums{0,3,7,2,5,8,4,6,0,1};
-    // vector<int> nums{100, 4, 200, 1, 3, 2};
-    Solution sl;
-    cout << sl.longestConsecutive(nums) << endl;
-    return 0;
-}
+// int main() {
+//     vector<int> nums{};
+//     // vector<int> nums{0,3,7,2,5,8,4,6,0,1};
+//     // vector<int> nums{100, 4, 200, 1, 3, 2};
+//     Solution sl;
+//     cout << sl.longestConsecutive(nums) << endl;
+//     return 0;
+// }

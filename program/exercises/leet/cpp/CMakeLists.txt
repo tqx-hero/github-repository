@@ -167,4 +167,5 @@ add_executable(cpp main.cpp
         leet/栈/前序遍历构造二叉搜索树-1008.cpp
         leet/哈希表/字母异位词分组-49.cpp
         leet/哈希表/最长连续序列-128.cpp
+        leet/哈希表/最短且字典序最小的美丽子字符串-2904.cpp
 )

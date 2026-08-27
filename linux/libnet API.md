@@ -443,4 +443,13 @@
 
     
 
-15. 
+15. libnet_destory:
+
+    ```c
+    //关闭libnet会话
+    void libnet_destroy (libnet_t *l);
+    ```
+
+    
+
+16. 

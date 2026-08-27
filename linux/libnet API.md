@@ -503,4 +503,60 @@
 
     
 
-18. 
+18. libnet_name2addr4:
+
+    ```c
+    /*
+    将ipv4地址字符串转化为uint32_t大端序
+    如果host_name为DNS域名且模式user_name设置为LIBNET_RESOLVE,则会进行一次DNS域名解析的请求。
+    使用LIBNET_DONT_RESOLVE则不会触发域名解析,并会按照错误进行处理
+    Parameters:
+               l pointer to a libnet context
+               host_name pointer to a string containing a presentation format host name
+               use_name LIBNET_RESOLVE or LIBNET_DONT_RESOLVE
+    Returns:
+               network byte ordered IPv4 address or -1 (2^32 - 1) on error
+    */
+    uint32_t libnet_name2addr4 (libnet_t *l, char *host_name, uint8_t use_name); 
+    ```
+
+    
+
+19. libnet_get_ipaddr4:
+
+    ```c
+    /*
+    获取libnet上下文绑定的网卡的IP地址(大端序)
+    If the function fails and returns -1 a call to libnet_geterrror() will tell you why.
+     Parameters:
+               l pointer to a libnet context
+    
+    Returns:
+    	a big endian IP address suitable for use in a libnet_build function or -1
+    */
+    
+    uint32_t libnet_get_ipaddr4 (libnet_t *l);
+    ```
+
+    
+
+20. libnet_get_hwaddr:
+
+    ```c
+    /*
+    获取libnet绑定的网卡的mac地址。
+    Returns the MAC address for the device libnet was initialized with. If libnet was
+           initialized without a device the function will attempt to find one. If the function fails and returns NULL a call to libnet_geterror() will
+           tell you why.
+           Parameters:
+               l pointer to a libnet context
+    
+           Returns:
+               a pointer to the MAC address or NULL
+    */
+    struct libnet_ether_addr* libnet_get_hwaddr (libnet_t *l);
+    ```
+
+    
+
+21. 

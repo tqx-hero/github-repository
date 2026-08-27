@@ -12,7 +12,7 @@
    */
     char err_buf[LIBNET_ERRBUF_SIZE];
    libnet_t * libnet_init (int injection_type, const char *device, char *err_buf);
-   #injection_type注入类型宏如下：
+   //injection_type注入类型宏如下：
    	LIBNET_LINK： 数据链路层普通模式。
            底层打开 Linux 的`PF_PACKET`套接字，直接操作以太网帧
            1、必须自己构造以太网帧头(libnet_build_ethernet())
@@ -184,7 +184,7 @@
             
    */
     libnet_ptag_t libnet_build_arp (uint16_t hrd, uint16_t pro, uint8_t hln, uint8_t pln, uint16_t op, const uint8_t *sha, const uint8_t *spa, const uint8_t *tha, const uint8_t *tpa, const uint8_t *payload,
-          uint32_tpayload_s, libnet_t *l, libnet_ptag_tptag);
+          uint32_t payload_s, libnet_t *l, libnet_ptag_t ptag);
    #define LIBNET_PTAG_INITIALIZER         0
    typedef int32_t libnet_ptag_t;
    ```
@@ -343,9 +343,7 @@
 
     ```c
     /*
-    	Autobuilds an Ethernet header. The RFC 894 Ethernet II header is almost identical to the IEEE 802.3 header, with
-           the exception that the field immediately following the source address holds the layer 3 protocol (as opposed to frame's length). You should only use this function when libnet is initialized with
-           the LIBNET_LINK interface.
+    	auto构造的都是新建一个协议控制块，相较于直接build，除必要的参数需要输入，其他选项一律为默认值或者0(NULL)
     */
     /*
     Parameters:
@@ -356,9 +354,9 @@
            Returns:
                protocol tag value on success, -1 on error
     */
-    libnet_ptag_t libnet_autobuild_ethernet (const uint8_t *dst, uint16_ttype, libnet_t *l);
+    libnet_ptag_t libnet_autobuild_ethernet (const uint8_t *dst, uint16_t type, libnet_t *l);
     ```
-
+    
     
 
 11. libnet_build_ethernet:
@@ -452,4 +450,57 @@
 
     
 
-16. 
+16. libnet_build_udp:
+
+    ```c
+    /*
+    创建一个udp首部
+    Parameters:
+               sp: source port. 源端口号
+               dp: destination port 目标端口号
+               len: total length of the UDP packet udp包总长度（首部+数据载荷）
+               sum: checksum (0 for libnet to autofill) ：校验和，填0会自动计算
+               payload: optional payload or NULL  数据载荷，会在udp首部的尾部添加该部分,或者为NULL表示没有其他数据载荷
+               payload_s: payload length or 0	数据载荷长度
+               l: pointer to a libnet context	libnet上下文
+               ptag: protocol tag to modify an existing header, 0 to build a new one。协议控制块标识，写0就会新建
+    
+           Returns:
+               protocol tag value on success, -1 on error
+    */
+    libnet_ptag_t libnet_build_udp (uint16_t sp, uint16_t dp, uint16_t len, uint16_t sum, const uint8_t *payload, uint32_t payload_s, libnet_t *l,libnet_ptag_t ptag); 
+    ```
+
+    
+
+17. libnet_build_ipv4:
+
+    ```c
+    //构造IPV4数据包
+    /*
+    Parameters:
+    	注意：除了IP参数超过2字节的整型均需要小端序，libnet内部会调用htons调整为大端
+               ip_len: ip分组总长度。IP首部+数据载荷
+               tos： 服务类型
+               id:IP标识，标识数据包的ID，同一个数据包的IP分组在分片后标识相同
+               frag ：片偏移
+               ttl：TTL
+               prot：传输层协议类型
+               sum ：首部校验和。写0会自动填充
+               src:源IP地址(大端序)
+               dst ：目的IP(大端序)
+               payload ：数据载荷，指向数据载荷的指针，没有则填NULL
+               payload_s payload length or 0
+               l pointer to a libnet context
+               ptag protocol tag to modify an existing header, 0 to build a new one
+               
+               
+           Returns:
+               protocol tag value on success, -1 on error
+    */
+    libnet_ptag_t libnet_build_ipv4 (uint16_t ip_len, uint8_t tos, uint16_t id, uint16_t frag, uint8_t ttl, uint8_t prot, uint16_t sum, uint32_t src,uint32_t dst, const uint8_t *payload, uint32_t payload_s, libnet_t *l, libnet_ptag_t ptag);
+    ```
+
+    
+
+18. 

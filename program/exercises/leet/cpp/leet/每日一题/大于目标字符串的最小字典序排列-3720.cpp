@@ -137,12 +137,12 @@ public:
     }
 };
 
-int main() {
-    // string s = "baba", target = "bbaa";
-    // string s = "ab", target = "ab";
-    string s = "leet", target = "code";
-    // string s = "abc", target = "bba";
-    Solution sl;
-    cout << sl.lexGreaterPermutation(s, target) << endl;
-    return 0;
-}
+// int main() {
+//     // string s = "baba", target = "bbaa";
+//     // string s = "ab", target = "ab";
+//     string s = "leet", target = "code";
+//     // string s = "abc", target = "bba";
+//     Solution sl;
+//     cout << sl.lexGreaterPermutation(s, target) << endl;
+//     return 0;
+// }

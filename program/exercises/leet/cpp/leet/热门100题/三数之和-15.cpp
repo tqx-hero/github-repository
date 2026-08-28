@@ -97,8 +97,7 @@ public:
                     //还需要放入一个数据结构去重
                     vector<int> candidate{ne_value, add_two, po_value};
                     sort(candidate.begin(), candidate.end());
-                    if (prune_set.count(candidate) == 0)
-                        prune_set.emplace(candidate);
+                    prune_set.emplace(candidate);
                 }
             }
         }

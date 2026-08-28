@@ -1,0 +1,13 @@
+Cannot open /home/tqx/boa/log/access_log for logging: logfile open: Is a directory
+[28/Aug/2026:06:48:08 +0000] boa.c:194 - unable to bind: Permission denied
+[28/Aug/2026:06:48:39 +0000] boa.c:226 - icky Linux kernel bug!: Success
+[28/Aug/2026:06:57:11 +0000] boa: server version Boa/0.94.13
+[28/Aug/2026:06:57:11 +0000] boa: server built Aug 27 2026 at 22:40:17.
+[28/Aug/2026:06:57:11 +0000] boa: starting server pid=40103, port 8080
+[28/Aug/2026:06:57:21 +0000] request from 192.168.1.24 "GET /favicon.ico HTTP/1.1" ("/home/tqx/boa/www/favicon.ico"): document open: No such file or directory
+[28/Aug/2026:06:58:31 +0000] request from 192.168.1.24 "(null)" ("(null)"): connection timed out
+[28/Aug/2026:07:04:21 +0000] request from 192.168.1.24 "(null)" ("(null)"): connection timed out
+[28/Aug/2026:07:04:21 +0000] request from 192.168.1.24 "(null)" ("(null)"): connection timed out
+[28/Aug/2026:07:05:49 +0000] request from 192.168.1.24 "(null)" ("(null)"): connection timed out
+[28/Aug/2026:07:05:49 +0000] request from 192.168.1.24 "(null)" ("(null)"): connection timed out
+[28/Aug/2026:07:23:04 +0000] request from 192.168.1.24 "(null)" ("(null)"): connection timed out

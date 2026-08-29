@@ -282,7 +282,11 @@ int parse_http_request(int  con_fd,char * recv_buffer,int r_len,char* error_buf)
 	char* error_message;
 	char sub_str_buf[1024];
 	char * sub_str= "\r\n";
+	char request_type[8],request_resource[50];
+	//解析请求类型、请求资源
+	//1、使用strstr、strtok函数截取
 	//获取\r\n的位置
+	/*
 	char* ptr = strstr(recv_buffer,sub_str);
 	printf("ptr == %d\n",ptr != NULL);
 	if(!ptr){
@@ -295,7 +299,6 @@ int parse_http_request(int  con_fd,char * recv_buffer,int r_len,char* error_buf)
 	printf("数据=%s\n",sub_str_buf);
 	//解析请求头：请求类型，资源
 	char * pch;
-	char request_type[8],request_resource[50];
 	pch = strtok(sub_str_buf," ");
 	//获取请求类型
 	if(!pch){
@@ -310,8 +313,14 @@ int parse_http_request(int  con_fd,char * recv_buffer,int r_len,char* error_buf)
 		goto failure_return;
 	}
 	strcpy(request_resource,pch);
+	*/
+	//2、使用sscanf按照表达式截取
+	sscanf(recv_buffer,"%[^ ] %[^ ]",request_type,request_resource);
+	printf("请求类型 = %s\n",request_type);
+	printf("请求资源 = %s\n",request_resource);
 	//根据请求资源查找路径下的文件，读取文件发送
-	handler_get_request(request_resource,con_fd);
+	if(strcasecmp(request_type,"GET") == 0)
+		handler_get_request(request_resource,con_fd);
 	return 0;
 failure_return:
 	sprintf(error_buf,"%s",error_message);

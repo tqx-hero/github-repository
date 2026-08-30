@@ -1,0 +1,11 @@
+#规则：
+#目标: 依赖....
+#	要执行的指令
+test: test1 test2
+	echo "create test"
+
+test1: 
+	echo "have test1"
+
+test2:
+	echo "have test2"

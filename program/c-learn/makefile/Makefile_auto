@@ -1,0 +1,25 @@
+#引入变量名，避免重复工作
+#在引入变量的基础上，使用自动变量：
+#1、$@: 表示编译后的目标对象，即:左边的
+#2、$^: 表示所有依赖项，即:右边的所有项
+#3、$<: 表示依赖项的第一项
+OBJ = test.o add.o sub.o mul.o div.o
+TARGET = test
+GCC = gcc
+$(TARGET) : $(OBJ)
+	$(GCC) $^ -o $@
+
+$(TARGET).o : $(TARGET).c
+	$(GCC) -c $^ -o $@
+
+add.o : add.c
+	$(GCC) -c $< -o $@
+
+sub.o : sub.c
+	$(GCC) -c $< -o $@
+
+mul.o : mul.c
+	$(GCC) -c $^ -o $@
+
+div.o : div.c
+	$(GCC) -c $^ -o $@

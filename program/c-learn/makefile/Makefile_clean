@@ -1,0 +1,12 @@
+#可以增加clean规则，使用make clean来清除所有Makefile生成的文件
+OBJ = test.o add.o sub.o mul.o div.o
+TARGET = test
+GCC = gcc
+$(TARGET) : $(OBJ)
+	$(GCC) $^ -o $@
+
+%.o : %.c
+	$(GCC) -c $^ -o $@
+
+clean :
+	rm -rf *.o $(TARGET)

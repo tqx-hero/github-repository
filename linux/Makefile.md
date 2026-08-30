@@ -63,4 +63,47 @@
 
    
 
-4. 
+4. 需要分组编译：
+
+   ```makefile
+   CC := gcc
+   CFLAGS := -Wall -g
+   # 第三方库额外编译链接参数，例如 libcurl
+   THIRD_CFLAGS := -DUSE_THIRD
+   THIRD_LDFLAGS := -lcurl
+   
+   # 普通c文件，不需要第三方库
+   SRCS_NORMAL := main.c util.c
+   # 需要第三方库的c文件
+   SRCS_THIRDPARTY := http_client.c net_api.c
+   
+   OBJS_NORMAL := $(SRCS_NORMAL:.c=.o)
+   OBJS_THIRDPARTY := $(SRCS_THIRDPARTY:.c=.o)
+   OBJS := $(OBJS_NORMAL) $(OBJS_THIRDPARTY)
+   
+   TARGET := app
+   
+   all: $(TARGET)
+   
+   # 链接阶段，整体链接第三方库
+   $(TARGET): $(OBJS)
+   	$(CC) $^ -o $@ $(THIRD_LDFLAGS)
+   
+   # ========== 重点：分组编译 ==========
+   # 普通.o：使用默认CFLAGS
+   $(OBJS_NORMAL): %.o: %.c
+   	$(CC) $(CFLAGS) -c $< -o $@
+   
+   # 第三方源码对应的.o：追加额外编译标志
+   $(OBJS_THIRDPARTY): %.o: %.c
+   	$(CC) $(CFLAGS) $(THIRD_CFLAGS) -c $< -o $@
+   #添加.PHONY声明clean为目标,当Makefile所在文件夹出现clean文件时，避免出现歧义
+   .PHONY:clean
+   clean:
+   	rm -f $(OBJS) $(TARGET)
+   
+   ```
+
+   
+
+5. 

@@ -175,4 +175,7 @@ add_executable(cpp main.cpp
         leet/热门100题/无重复字符的最长子串-3.cpp
         leet/热门100题/和为K的子数组-560.cpp
         leet/每日一题/从数组中移除最大值与最小值-2091.cpp
+        leet/热门100题/接雨水-42.cpp
+        leet/热门100题/滑动窗口最大值-239.cpp
+        leet/热门100题/最小覆盖子串-76.cpp
 )

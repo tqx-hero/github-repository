@@ -178,4 +178,6 @@ add_executable(cpp main.cpp
         leet/热门100题/接雨水-42.cpp
         leet/热门100题/滑动窗口最大值-239.cpp
         leet/热门100题/最小覆盖子串-76.cpp
+        leet/热门100题/最大子数组和-53.cpp
+        leet/热门100题/合并区间-56.cpp
 )

@@ -1,4 +1,4 @@
-SRC_DIRS := . /home/tqx/net/wrapper
+SRC_DIRS := . /home/tqx/net/wrapper ./function/src
 SRC_DIRS_THREAD := /home/tqx/net/thread-pool
 SRC_NORMAL := $(shell find $(SRC_DIRS) -name "*.c")
 SRC_THREAD := $(foreach dir,$(SRC_DIRS_THREAD),$(wildcard $(dir)/*.c))

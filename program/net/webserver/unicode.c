@@ -1,0 +1,7 @@
+#include <stdio.h>
+
+int main(){
+	char buf[20]={0xe8,0x8b,0xa6,0xe7,0x93,0x9c};
+	printf("%s\n",buf);
+	return 0;
+}

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>静态测试页面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .container {
+            background: #ffffff;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #222;
+            margin-bottom:24px;
+            font-size:26px;
+        }
+        .item {
+            margin:16px 0;
+        }
+        label {
+            display:block;
+            margin-bottom:6px;
+            color:#444;
+        }
+        input, textarea {
+            width:100%;
+            padding:10px 12px;
+            border:1px solid #ccc;
+            border-radius:6px;
+            font-size:15px;
+        }
+        button {
+            padding:10px 22px;
+            background:#2563eb;
+            color:white;
+            border:none;
+            border-radius:6px;
+            cursor:pointer;
+            font-size:15px;
+        }
+        button:hover {
+            background:#1d4ed8;
+        }
+        #result {
+            margin-top:20px;
+            padding:16px;
+            background:#f3f4f6;
+            border-radius:6px;
+            min-height:80px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>HTML静态测试界面</h1>
+
+    <div class="item">
+        <label>输入内容：</label>
+        <input type="text" id="inputText" placeholder="请输入测试文本">
+    </div>
+
+    <div class="item">
+        <label>多行文本：</label>
+        <textarea id="textareaVal" rows="4" placeholder="在这里输入"></textarea>
+    </div>
+
+    <div class="item">
+        <button id="btnShow">点击输出结果</button>
+        <button id="btnClear">清空</button>
+    </div>
+
+    <div>
+        <h3>输出区域：</h3>
+        <div id="result"></div>
+    </div>
+
+</div>
+
+<script>
+    const btnShow = document.getElementById('btnShow');
+    const btnClear = document.getElementById('btnClear');
+    const inputText = document.getElementById('inputText');
+    const textareaVal = document.getElementById('textareaVal');
+    const result = document.getElementById('result');
+
+    btnShow.addEventListener('click', ()=>{
+        const data = {
+            input: inputText.value,
+            textarea: textareaVal.value,
+            time: new Date().toLocaleString()
+        };
+        result.innerText = JSON.stringify(data,null,2);
+    })
+
+    btnClear.addEventListener('click',()=>{
+        inputText.value = '';
+        textareaVal.value = '';
+        result.innerText = '';
+    })
+</script>
+
+</body>
+</html>
+

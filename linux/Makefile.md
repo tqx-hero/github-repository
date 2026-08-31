@@ -7,8 +7,8 @@
    SRC := $(wildcard ./*.c ../file/*.c)
    #也可以使用+=拼接
    SRC += $(wildcard /home/*.c)
-   #或者使用linux的find指令
-   SRC := $(linux find ./ -name *.c)
+   #或者使用linux的find指令,注意使用''或者""把条件看作一个整体
+   SRC := $(shell find ./ -name '*.c')
    #也可以使用foreach，迭代获取一个目录集合下面的所有制定文件
    SRC_DIRS := . src dev	#定义目录集合，后续可直接从这里添加目录
    SRC := $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.c))

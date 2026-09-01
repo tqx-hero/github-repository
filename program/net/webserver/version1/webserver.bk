@@ -22,6 +22,11 @@ typedef struct
 	void *arg;
 } reactor_t;
 // 各事件触发后回调函数的参数
+
+typedef struct {
+
+} write_info_t;
+
 typedef struct
 {
 	int epfd;
@@ -30,12 +35,15 @@ typedef struct
 	char cli_ip[INET_ADDRSTRLEN];
 	pthread_pool_t *thread_pool;
 	reactor_t *reactor;
+	char read_buf[MESSAGE_BUFFER_SIZE];
+	int read_buf_len;
 } con_sock_t;
 
 con_sock_t *malloc_consock_t(const con_sock_t *params);
 reactor_t *malloc_reactor_t(int con_fd, func_type func_handler, void *arg);
 void *reactor_listen(void *arg);
 void *deal_with_socket(void *);
+void * write_with_socket(void* arg);
 int main()
 {
 	// 创建监听套接字,设置为非阻塞
@@ -113,6 +121,7 @@ con_sock_t *malloc_consock_t(const con_sock_t *params)
 		perror("malloc con_sock_t error");
 		return NULL;
 	}
+	memset(cst,0,sizeof(cst));
 	cst->epfd = params->epfd;
 	cst->con_fd = params->con_fd;
 	cst->cli_port = params->cli_port;
@@ -181,6 +190,7 @@ void *reactor_listen(void *arg)
 	// 将已连接的socket注册监听事件
 	// 设置事件触发为边沿触发
 	// 注意：当监听写事件时，必须设置为边沿触发，以免不必要的状态切换
+	// ep_event.events = EPOLLIN | EPOLLET  | EPOLLOUT;
 	ep_event.events = EPOLLIN | EPOLLET; // | EPOLLOUT;
 	// 将epoll监听事件之前绑定的fd切换为绑定结构体指针
 	ep_event.data.ptr = (void *)reactor;
@@ -188,6 +198,10 @@ void *reactor_listen(void *arg)
 	return (void *)(long)0;
 }
 
+void * write_with_socket(void* arg) {
+
+
+}
 
 // 需要修改arg参数为一个结构体：结构体分别存放当前套接字cur_fd与epoll根节点的描述符epfd
 void *deal_with_socket(void *arg)
@@ -206,10 +220,10 @@ void *deal_with_socket(void *arg)
 	// pid_t tid = syscall(SYS_gettid);
 	while (1)
 	{
+		// int r_len = Read(cur_fd, con_sock->read_buf+con_sock->read_buf_len, MESSAGE_BUFFER_SIZE);
 		int r_len = Read(cur_fd, recv_buffer, MESSAGE_BUFFER_SIZE);
 		if (r_len == 0)
 		{
-			printf("ren == 0..............\n");
 			printf("[%s:%d]已下线!\n", cli_ip, cli_port);
 			goto return_func;
 		}
@@ -224,6 +238,7 @@ void *deal_with_socket(void *arg)
 				cur_fd = -1;
 			goto return_func;
 		}
+		// con_sock->read_buf_len+=r_len;
 		// recv_buffer[r_len] =0;
 		// printf("[%s:%d]:%s\n",cli_ip,cli_port,recv_buffer);
 		// 解析http请求，发送相关的资源
@@ -232,10 +247,18 @@ void *deal_with_socket(void *arg)
 			printf("error:%s\n", error_buf);
 	}
 return_func:
+		//判断有没有读取到数据，有读取的数据就要将该读事件设置为写事件
+		// if(con_sock->read_buf_len){
+
+		// }
+		// char error_buf[512];
+		// if (parse_http_request(cur_fd, recv_buffer, r_len, error_buf) == -1)
+		// 	printf("error:%s\n", error_buf);
 	if (cur_fd >= 0)
 	{
 		// 需要将这个socket从epoll红黑树中去除
 		// 下线断开连接
+		printf("epoll ...................\n");
 		Epoll_ctl(epfd, EPOLL_CTL_DEL, cur_fd, NULL);
 		// 释放资源
 		free(con_sock->reactor);

@@ -68,7 +68,7 @@ int send_header(const char *filepath, int con_fd, res_state_t *state,int isdir)
 	total_length += sprintf(message_buf + total_length, "Content-Type: %s\r\n", 
 		get_content_type(isdir ? "*.html" :filepath));
 	total_length += sprintf(message_buf + total_length, "%c%c", '\r', '\n');
-	Write(con_fd, message_buf, total_length);
+	write(con_fd, message_buf, total_length);
 	return (EXIT_SUCCESS);
 }
 
@@ -110,21 +110,22 @@ int send_resource(char* filepath,int isdir,char * dirpath,int con_fd){
 					<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> \
 					<title>所有文件</title> \
 				</head><body>");
-		Write(con_fd,message_buf,total_length);
+		write(con_fd,message_buf,total_length);
 		while (file_cnt--)
 		{
+			printf("dirpath = %s\n",dirpath);
 			printf("file_name = %s\n",files[file_cnt]->d_name);
 			printf("file type = %d\n",files[file_cnt]->d_type);
 			if(files[file_cnt]->d_type == DT_REG)
-				total_length = sprintf(message_buf,"<li><a href=\"%s/%s\">%s</a></li><br/>",dirpath,files[file_cnt]->d_name,files[file_cnt]->d_name);
+				total_length = sprintf(message_buf,"<li><a href=\"%s%s\">%s</a></li><br/>",dirpath,files[file_cnt]->d_name,files[file_cnt]->d_name);
 			else
-				total_length = sprintf(message_buf,"<li><a href=\"%s%s/\">%s</a></li><br/>",dirpath,files[file_cnt]->d_name,files[file_cnt]->d_name);
+				total_length = sprintf(message_buf,"<li><a href=\"%s%s\">%s</a></li><br/>",dirpath,files[file_cnt]->d_name,files[file_cnt]->d_name);
 				free(files[file_cnt]);
-			Write(con_fd,message_buf,total_length);
+			write(con_fd,message_buf,total_length);
 		}
 		total_length = sprintf(message_buf,"%s","</body> \
 			</html> ");
-		Write(con_fd,message_buf,total_length);
+		write(con_fd,message_buf,total_length);
 		free(files);
 		goto ret_success;
 	}
@@ -134,11 +135,7 @@ int send_resource(char* filepath,int isdir,char * dirpath,int con_fd){
 		total_length = fread(message_buf, sizeof(char), sizeof(message_buf), fptr);
 		if (total_length == 0)
 			break;
-		ssize_t send_size = 0;
-		while (send_size < total_length)
-		{
-		 	send_size +=Write(con_fd, message_buf, total_length);
-		}
+		write(con_fd, message_buf, total_length);
 	}
 	
 	fclose(fptr);
@@ -168,8 +165,11 @@ int handler_get_request(char *resource_url, int con_fd)
 	else
 	{
 		// 如果请求的是文件夹，需要回填文件夹的互动html界面
-		if (S_ISDIR(st.st_mode))
+		if (S_ISDIR(st.st_mode)){
 			isdir = 1;
+			if(file_path[strlen(file_path)-1] !='/')
+				strcat(resource_url,"/");
+		}
 		// 如果请求的是普通文件,直获取对应url下的文件，组包发送
 		printf("请求的文件路径 = %s\n", file_path);
 		// 设置状态码与状态信息
@@ -187,6 +187,8 @@ int handler_get_request(char *resource_url, int con_fd)
 // 解析http请求
 int parse_http_request(int con_fd, char *recv_buffer, int r_len, char *error_buf)
 {
+	printf("into request parse \n");
+	printf("message : %s\n",recv_buffer);
 	char *error_message;
 	char sub_str_buf[1024];
 	char *sub_str = "\r\n";

@@ -187,4 +187,6 @@ add_executable(cpp main.cpp
         leet/热门100题/螺旋矩阵-54.cpp
         leet/热门100题/旋转图像-48.cpp
         leet/热门100题/s搜索二维矩阵II-240.cpp
+        leet/热门100题/相交链表-160.cpp
+        leet/热门100题/反转链表-206.cpp
 )

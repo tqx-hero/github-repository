@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 #define SERVER_PORT 9000
 #define EVENT_ARR_MAX_SIZE 1024
 #define MESSAGE_MAX_SIZE 1500
@@ -54,7 +55,6 @@ int main(){
 		for(int i=0;i < ev_cnt;++i){
 			struct epoll_event evt =  evt_arr[i];
 			int cur_fd = evt.data.fd;
-			printf("有事件..........\n");
 			//判断是监听的fd还是连接的fd
 			//监听的fd处理
 			if(cur_fd == lfd && (evt.events & EPOLLIN)){
@@ -67,6 +67,10 @@ int main(){
 				printf("[%s : %d] 上线\n",
 					inet_ntop(AF_INET,&client_addr.sin_addr.s_addr,cli_ip,INET_ADDRSTRLEN),ntohs(client_addr.sin_port));
 				//新连接上树
+				//设置套接字为非阻塞
+				int flags = fcntl(con_fd,F_GETFL,0);
+				flags |= O_NONBLOCK;
+				fcntl(con_fd,F_SETFL,flags);
 				event.events = EPOLLIN;
 				event.data.fd = con_fd;
 				epoll_ctl(epfd,EPOLL_CTL_ADD,con_fd,&event);
@@ -74,7 +78,7 @@ int main(){
 				printf("有新的读事件\n");
 				//连接套接字的读事件
 				int r_len = read(cur_fd,message_buf,sizeof(message_buf));
-				if(r_len == 0){
+				if(r_len <= 0){
 					//关闭连接，下树
 					printf("client close\n");
 					epoll_ctl(epfd,EPOLL_CTL_DEL,cur_fd,NULL);

@@ -184,4 +184,7 @@ add_executable(cpp main.cpp
         leet/热门100题/轮转数组-189.cpp
         leet/热门100题/缺失的第一个正数-41.cpp
         leet/热门100题/矩阵置零-73.cpp
+        leet/热门100题/螺旋矩阵-54.cpp
+        leet/热门100题/旋转图像-48.cpp
+        leet/热门100题/s搜索二维矩阵II-240.cpp
 )

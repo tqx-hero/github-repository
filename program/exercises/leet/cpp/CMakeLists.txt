@@ -196,4 +196,7 @@ add_executable(cpp main.cpp
 #        leet/热门100题/两数相加-2.cpp
 #        leet/热门100题/删除链表的倒数第N个节点-19.cpp
         leet/热门100题/两两交换链表中的节点-24.cpp
+        leet/每日一题/构造奇偶一致的数组II-3876.cpp
+        leet/热门100题/K个一组翻转链表-25.cpp
+        leet/热门100题/随机链表的复制-138.cpp
 )

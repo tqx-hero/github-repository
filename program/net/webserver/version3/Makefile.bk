@@ -1,0 +1,27 @@
+SRC_DIRS := ./function 
+SRC_EVENT_DIRS := . 
+SRC_NORMAL := $(shell find $(SRC_DIRS) -name "*.c")
+SRC_EVENT := $(shell find $(SRC_EVENT_DIRS) -name "*.c")
+TARGET := webserver
+CC := gcc
+OBJ_NORMAL := $(SRC_NORMAL:.c=.o)
+OBJ_EVENT := $(SRC_EVENT:.c=.o)
+OBJ := $(OBJ_NORMAL) $(OBJ_EVENT) 
+FLAG_EVENT := -levent
+$(TARGET) : $(OBJ)
+	$(CC) $^ -o $@ $(FLAG_EVENT)
+
+$(OBJ_NORMAL) : %.o : %.c
+	$(CC) -c $< -o $@
+
+$(OBJ_EVENT) : %.o : %.c 
+	$(CC) -c $< -o $@ $(FLAG_EVENT)
+
+print:
+	@echo "SRC NORMAL= $(SRC_NORMAL)"
+	@echo "OBJ NORMAL= $(OBJ_NORMAL)"
+	@echo "SRC EVENT = $(SRC_EVENT)"
+	@echo "OBJ EVENT= $(OBJ_EVENT)"
+.PHONY:clean
+clean:
+	rm -rf $(TARGET) $(OBJ)

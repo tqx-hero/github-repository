@@ -1,21 +1,9 @@
-#include <event.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <event2/listener.h>
+#include "./function/header/http_handler.h"
 #include <arpa/inet.h>
 #define SERVER_PORT 9000
 /**
- * 使用bufferevent的demo
+ * 使用bufferevent的web服务器
  */
-//自定义结构体，创建每一个连接监听事件时传入的参数
-typedef struct con_socket_t{
-	int con_fd;
-	struct sockaddr addr;
-	char ip[INET_ADDRSTRLEN];
-	uint16_t port;
-}con_socket_t;
 
 void listen_callback (struct evconnlistener *listener,evutil_socket_t sock, struct sockaddr *addr, int len, void *ptr);
 void listener_error_callback(struct evconnlistener * listener, void * arg);
@@ -88,10 +76,6 @@ void listen_callback (struct evconnlistener *listener,evutil_socket_t con_fd, st
 }
 //注册套接字的读、写以及信号处理事件
 void  read_handler (struct bufferevent *bev, void *ctx){
-	//struct evbuffer *bufferevent_get_input(struct bufferevent *bufev);
-	
-	// struct evbuffer* r_buf = bufferevent_get_input(bev);
-	// int r_len = evbuffer_get_length(r_buf);
 	char r_buf[1500];
 	int r_len = bufferevent_read(bev,r_buf,sizeof(r_buf));
 	r_buf[r_len] ='\0';
@@ -99,14 +83,20 @@ void  read_handler (struct bufferevent *bev, void *ctx){
 	// int con_fd = bufferevent_get_fd(bev);
 	//直接解析参数
 	con_socket_t* cst = (con_socket_t*) ctx;
-	fprintf(stdout,"[%s:%d]:%s\n",cst->ip,cst->port,r_buf);
-	// bufferevent_read(bev);
-	//回射回客户端
-	bufferevent_write(bev,r_buf,r_len);
+	//调用http相应处理函数
+	char error_buf[64];
+	parse_http_request(bev,r_buf,r_len,error_buf);
+	//设置需要关闭的标志，当写入完成后会调用写事件，在那里关闭连接
+	((con_socket_t*) ctx) ->close =1;
 }
+//当写入内核的发送缓冲区完成后的回调函数，在这里关闭连接
 void  write_handler (struct bufferevent *bev, void *ctx){
-
-
+	con_socket_t* cst = (con_socket_t*)ctx;
+	if(cst->close){
+		printf("数据已发送完毕,正在关闭连接...\n");
+		bufferevent_free(bev);
+		free(cst);
+	}
 }
 
 void signal_handler (struct bufferevent *bev, short events, void *ctx){

@@ -199,4 +199,7 @@ add_executable(cpp main.cpp
         leet/每日一题/构造奇偶一致的数组II-3876.cpp
         leet/热门100题/K个一组翻转链表-25.cpp
         leet/热门100题/随机链表的复制-138.cpp
+        leet/热门100题/排序链表-148.cpp
+        leet/热门100题/合并K个升序链表-23.cpp
+        leet/热门100题/LRU缓存-146.cpp
 )

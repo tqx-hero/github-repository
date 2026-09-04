@@ -202,4 +202,10 @@ add_executable(cpp main.cpp
         leet/热门100题/排序链表-148.cpp
         leet/热门100题/合并K个升序链表-23.cpp
         leet/热门100题/LRU缓存-146.cpp
+        leet/每日一题/最小稳定下标-3903.cpp
+        leet/热门100题/二叉树的中序遍历-94.cpp
+        leet/热门100题/二叉树的最大深度-104.cpp
+        leet/热门100题/翻转二叉树-226.cpp
+        leet/热门100题/对称二叉树-101.cpp
+        leet/热门100题/二叉树的直径-543.cpp
 )

@@ -37,20 +37,25 @@ premium lock icon
 
 #include "../../link/TreeNode.h"
 using namespace std;
-//TODO
+//自底向上分别计算每个节点作为父节点时左右子树高度的和最大值，再在这些最大值和里面取最大的返回
 class Solution {
     int max_path = 0;
 
+    //主函数，统计每个节点作为父节点时的最大左子树深度+右子树深度，(不要忘了每个子树需要+1得到当前节点的深度)随时更新结果集max_path。
+    //该函数返回的是当前节点的最大深度，即取max(左子树深度+1,右子树深度+1)
     int get_child_height(TreeNode *node) {
         if (!node)
-            return 0;
-        return max(get_child_height(node->left),
-                   get_child_height(node->right)) + 1;
+            return -1;
+        int left_height = get_child_height(node->left) + 1;
+        int right_height = get_child_height(node->right) + 1;
+        max_path = max(max_path, left_height + right_height);
+        return max(left_height, right_height);
     }
 
 public:
     int diameterOfBinaryTree(TreeNode *root) {
-        return get_child_height(root->left) + get_child_height(root->right);
+        get_child_height(root);
+        return max_path;
     }
 };
 

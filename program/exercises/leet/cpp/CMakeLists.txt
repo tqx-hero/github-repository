@@ -209,4 +209,7 @@ add_executable(cpp main.cpp
         leet/热门100题/对称二叉树-101.cpp
         leet/热门100题/二叉树的直径-543.cpp
         leet/每日一题/最小稳定下标II-3904.cpp
+        leet/热门100题/二叉树的层序遍历-102.cpp
+        leet/热门100题/将有序数组转换为二叉搜索树-108.cpp
+        leet/热门100题/验证二叉搜索树-98.cpp
 )

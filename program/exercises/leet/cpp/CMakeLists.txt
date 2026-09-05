@@ -208,4 +208,5 @@ add_executable(cpp main.cpp
         leet/热门100题/翻转二叉树-226.cpp
         leet/热门100题/对称二叉树-101.cpp
         leet/热门100题/二叉树的直径-543.cpp
+        leet/每日一题/最小稳定下标II-3904.cpp
 )

@@ -40,20 +40,25 @@ premium lock icon
 #include <vector>
 #include <iostream>
 #include <stack>
+#include <stdint.h>
 using namespace std;
+
 //TODO
 class Solution {
+    long long min_val = INT64_MIN;
 
 public:
     bool isValidBST(TreeNode *root) {
-        stack<TreeNode*> cache;
-        cache.push(root);
-        while (!cache.empty()) {
-            auto tree_node = cache.top();
-        }
+        if (!root)
+            return true;
+        bool left_flag = isValidBST(root->left);
+        if (!left_flag || min_val >= root->val)
+            return false;
+        min_val = root->val;
+        return isValidBST(root->right);
     }
 };
 
-int main() {
-    return 0;
-}
+// int main() {
+//     return 0;
+// }

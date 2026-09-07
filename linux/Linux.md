@@ -66,9 +66,13 @@
 
    ```shell
    timedatectl set-timezone Asia/Shanghai
+   #可用list-timezones列出所有支持的时区
+   timedatectl list-timezones
+   #查看当前的时区：
+   ll /etc/localtime
    ```
 
-   
+   ![image-20260907170604978](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260907170604978.png)
 
 9. 查看某个命令的类型(vim/echo等)：
 
@@ -173,9 +177,41 @@
 
     ```shell
     lscpu
+    #或者直接到/proc/目录下打开相关文件查找(proc不是具体的磁盘上的文件，而是一块存储各种信息的内存)
+    cat /proc/cpuinfo
     ```
 
     
 
-19. 
+19. 查看内核版本：
+
+    ```shell
+    uname -r
+    ```
+
+    ![image-20260907163111901](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260907163111901.png)
+
+20. 查看操作系统的信息：
+
+    ```shell
+    #centos:
+    cat /etc/redhat-release
+    cat /etc/os-release
+    #ubuntu:
+    cat /etc/os-release
+    ```
+
+    ![image-20260907163541479](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260907163541479.png)
+
+    ![image-20260907163636220](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260907163636220.png)
+
+21. 显示日历：
+
+    ```shell
+    cal
+    ```
+
+    ![image-20260907171100128](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260907171100128.png)
+
+22. 
 

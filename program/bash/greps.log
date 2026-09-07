@@ -1,0 +1,17 @@
+Binary file /home/tqx/net/epoll/a.out matches
+2://#include <sys/epoll.h>
+7: *epoll实现多路复用服务器
+9:typedef struct epoll_event event_type;
+26:	//创建epoll实例
+38:	       while(((event_count = epoll_wait(epfd,event_buffer,EVENT_BUFFER_SIZE,-1))
+53:				//连接套接字注册到epoll红黑树结构中监听
+69:					//需要将这个socket从epoll红黑树中去除
+Binary file /home/tqx/net/select/server matches
+48:int Epoll_ctl(int epfd,int op,int fd,struct epoll_event* event){
+50:	if((ret = epoll_ctl(epfd,op,fd,event)) == -1)
+51:		perror_exit("epoll_ctl error");
+85:	if((ret = epoll_create(size)) == -1)
+86:		perror_exit("epoll create error");
+8:#include <sys/epoll.h>
+27:int Epoll_ctl(int epfd,int op,int fd,struct epoll_event* event);
+Binary file /home/tqx/net/wrapper/sockwrapper.o matches

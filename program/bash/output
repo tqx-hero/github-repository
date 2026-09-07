@@ -1,0 +1,8 @@
+#!/bin/bash
+for file in /home/tqx/net/**/*
+do
+grep -n "epoll" $file >> greps.log
+done
+echo "success"
+exit 0
+

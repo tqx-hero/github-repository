@@ -1,0 +1,10 @@
+#!/bin/bash
+for file in /home/tqx/net/**/*
+do
+if grep -n "epoll" $file
+then
+echo $file
+fi
+done
+exit 0
+

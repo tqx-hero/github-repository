@@ -41,25 +41,47 @@ premium lock icon
  */
 #include "../../link/TreeNode.h"
 using namespace std;
+
 //TODO
 class Solution {
-    TreeNode* cur_right =nullptr;
-    void connection(TreeNode *node,TreeNode* parent) {
-        if (!node)
-            return;
-        connection(node->left,node);
-        auto right = parent->right;
-        parent->right = node;
-        node->left=nullptr;
-        connection(node->right,node);
-        node->right=right;
-    }
+
 public:
     void flatten(TreeNode *root) {
+        if (!root)
+            return;
+        auto left_node = root->left;
+        auto right_node = root->right;
+        if(left_node){
+            root->right = left_node;
+            TreeNode* prev = left_node;
+            while(prev->right)
+                prev= prev->right;
+            prev->right =right_node;
+            root->left =nullptr;
+        }
+        flatten(left_node);
+        flatten(right_node);
 
     }
 };
 
 // int main() {
+//     // TreeNode t6(6);
+//     // TreeNode t5(5, nullptr, &t6);
+//     // TreeNode t4(4);
+//     // TreeNode t3(3);
+//     // TreeNode t2(2, &t3, &t4);
+//     // TreeNode t1(1, &t2, &t5);
+//
+//     // TreeNode t3(3);
+//     // TreeNode t2(2, &t3, nullptr);
+//     // TreeNode t1(1, &t2, nullptr);
+//
+//     TreeNode t4(4);
+//     TreeNode t2(2);
+//     TreeNode t3(3,&t2,&t4);
+//     TreeNode t1(1,nullptr,&t3);
+//     Solution sl;
+//     sl.flatten(&t1);
 //     return 0;
 // }

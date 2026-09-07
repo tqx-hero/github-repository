@@ -23,6 +23,8 @@ int main(int argc,char ** argv,char** env){
         ++array;
     }
     printf("\n");
+    free(array);
+    array =NULL;
     return 0;
 }
 

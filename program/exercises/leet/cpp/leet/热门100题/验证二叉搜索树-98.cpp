@@ -43,7 +43,6 @@ premium lock icon
 #include <stdint.h>
 using namespace std;
 
-//TODO
 class Solution {
     long long min_val = INT64_MIN;
 

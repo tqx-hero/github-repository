@@ -42,7 +42,6 @@ premium lock icon
 #include "../../link/TreeNode.h"
 using namespace std;
 
-//TODO
 class Solution {
 
 public:

@@ -213,5 +213,119 @@
 
     ![image-20260907171100128](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260907171100128.png)
 
-22. 
+22. 多长时间后关机：
+
+    ```shell
+    #十分钟后关机
+    shutdown +10
+    #设置15:20分关机
+    shutdown 15:20
+    #取消关机的操作
+    shutdown -c
+    ```
+
+    ![image-20260908143854085](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260908143854085.png)
+
+23. 查看当前登录的用户：
+
+    ```shell
+    w
+    ```
+
+    ![image-20260908144151806](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260908144151806.png)
+
+24. 安装会话管理软件：
+
+    ```shell
+    #screen 可以管理session，创建回话后开启新的进程去处理一些长时间的任务，在终端异常断开时也能在后台继续执行
+    sudo apt install screen
+    #打开新的回话
+    screen
+    ```
+
+    ![image-20260908145802980](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260908145802980.png)
+
+25. screen屏幕同步(会话协同)：
+
+    ```shell
+    #展示所有screen会话
+    screen -ls(或者-list)
+    #创建socket名称为tqx的screen会话
+    screen -S tqx
+    #另一个shell进程加入tqx会话
+    screen -x tqx
+    #恢复某sesstin会话,会话必须是detach状态的，session选项可以是pid，或者名称
+    screen -r [session]
+    #退出当前screen会话
+    ctrl a+d
+    #退出并关闭screen
+    exit
+    ```
+
+    
+
+26. 增强版screen----tmux：
+
+    ```shell
+    #安装(centos)
+    yum install tmux
+    #ubuntu
+    sudo apt install tmux
+    #分屏：上下分屏(注意：ctrl+b一起按，"格外按)
+    ctrl+b "
+    #左右分屏(按键规则同上)：
+    ctrl+b %
+    #光标切换
+    ctrl+b 方向键
+    #列出所有tmux的快捷键
+    tmux list-keys
+    #列出所有命令：
+    tmux list-command
+    #关闭窗口：
+    exit
+    ```
+
+    
+
+27. echo:
+
+    ```shell
+    #输出字符串，也可以取变量的内容输出(字符串形式)
+    echo [-ne] [options]
+    -n:输出时不换行输出。默认为换行输出
+    -e：启用字符解释功能，如:echo -e "\a"指令不会输出字符串a,会将其解释成\a功能，即发出警告声音
+    #输出八进制数\0127的字符表示W
+    echo -e "\0127"
+    #输出十六进制数0x61的字符表示a
+    echo -e "\x61"
+    选项：
+    -str：可以是任意字符串，如果中途有空格，需要使用""或者''括起来
+    -$param：param表示变量名，使用$进行获取指定变量的字符串值
+    
+    ```
+
+    ![image-20260908171647572](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260908171647572.png)
+
+28. 显示当前字符集：
+
+    ```shell
+    echo $LANG
+    #字符集的配置文件在/etc目录下
+    #centOS：/etc/locale.conf
+    #ubuntu:/etc/default/grub
+    ```
+
+    
+
+    
+
+29. 以十六进制数显示某个文本：
+
+    ```shell
+    hexdump -C text.txt
+    ```
+
+    ![image-20260908165445688](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260908165445688.png)
+
+30. 
 

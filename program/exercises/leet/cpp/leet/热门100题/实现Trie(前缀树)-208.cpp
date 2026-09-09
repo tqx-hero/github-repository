@@ -72,6 +72,22 @@ class Trie {
     }
 
 public:
+
+    void delete_list(TrieNode* cur) {
+        for (auto node : cur->next) {
+            if (!node)
+                continue;
+            delete_list(node);
+            delete node;
+            node=nullptr;
+        }
+    }
+
+    ~Trie() {
+        delete_list(root);
+        root =nullptr;
+    }
+
     Trie() {
         root = new TrieNode(-1);
     }

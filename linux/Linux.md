@@ -327,5 +327,52 @@
 
     ![image-20260908165445688](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260908165445688.png)
 
-30. 
+30. echo中单引号与双引号：
+
+    ```shell
+    echo "$PATH" #双引号为弱引用，echo解析时会将变量进行替换，而不是按照字符串解释
+    echo '$PATH' #单引号为强引用，在引号内的全部解析成字符串.
+    ```
+
+    
+
+31. 反向单引号：
+
+    ```shell
+    #注意，以下所有指令都是需要双引号括起来，如果换成单引号会输出原字符串内容，不会进行任何解释
+    echo "local host is `hostname`" #会将反向单引号中的内容当成指令解读，效果同$(hostname)相同
+    echo "local host is $(hostname)" #该写法与上述等价
+    echo "local host is $hostname" #不加()的$是取变量的内容
+    ```
+
+    
+
+32. 输出当前日期：
+
+    ```shell
+    date +%F
+    #常用日志备份指令
+    touch `date +%F`.log	#创建一个日志文件，以今日年月日作为文件名
+    touch $(date +%F).log	#与上述命令等价
+    touch `hostname`-$(date +%F).log	#或者可以与其他指令拼接起来使用
+    ```
+
+    ![image-20260909172134144](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260909172134144.png)
+
+    ![image-20260909172240022](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260909172240022.png)
+
+33. 花括号使用：
+
+    ```shell
+    echo file{11,22,33}	#表示输出以file为前缀的三个字符串：file11,file22,file33
+    echo {1..10}	#输出[1,10]范围内的所有数,支持降序如：{100..10}
+    echo {a..z}		#输出字母a-z,支持降序如：{m..a}
+    echo {100..200..2}	#输出连续区间[100,200]之间的数，每个数的间隔为2，结果就是取的所有[100,200]之间的偶数
+    ```
+
+    ![image-20260909180746007](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260909180746007.png)
+
+    ![image-20260909180846188](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260909180846188.png)
+
+34. 
 

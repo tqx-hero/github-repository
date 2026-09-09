@@ -220,4 +220,8 @@ add_executable(cpp main.cpp
         leet/热门100题/路径总和III-437.cpp
         leet/热门100题/二叉树的最近公共祖先-236.cpp
         leet/热门100题/岛屿数量-200.cpp
+        leet/每日一题/统计范围内的逗号-3871.cpp
+        leet/热门100题/腐烂的橘子-994.cpp
+        leet/热门100题/课程表-207.cpp
+        "leet/热门100题/实现Trie(前缀树)-208.cpp"
 )

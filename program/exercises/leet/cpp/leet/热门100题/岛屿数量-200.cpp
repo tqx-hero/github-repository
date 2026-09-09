@@ -41,93 +41,64 @@ grid[i][j] 的值为 '0' 或 '1'
  */
 #include <vector>
 #include <iostream>
-#include <unordered_set>
+#include <algorithm>
 
 using namespace std;
+
 //TODO
 class Solution {
-    struct Entry {
-        int x, y;
-        mutable bool visited;
+    int row_size = 0, col_size = 0;
 
-        Entry(int x, int y, bool visited = false) : x(x), y(y), visited(visited) {
-        }
+    bool check_postion_valid(int x, int y) {
+        if (x < 0 || x >= row_size || y < 0 || y >= col_size)
+            return false;
+        return true;
+    }
 
-        bool operator==(const Entry &other) const noexcept {
-            return this->x == other.x && this->y == other.y;
-        }
-    };
+    //检查坐标是否已被标记
+    bool get_round_target(vector<vector<bool> > &visited, int x, int y) {
+        if (!check_postion_valid(x, y))
+            return false;
+        return visited[x][y];
+    }
 
-    struct EntryHash {
-        static void hash_combine(std::size_t &seed, const int &val) noexcept {
-            hash<int> hasher;
-            seed ^= hasher(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        }
-
-        size_t operator()(const Entry &x) const noexcept {
-            size_t seed = 0;
-            hash_combine(seed, x.x);
-            hash_combine(seed, x.y);
-            return seed;
-        }
-    };
-
-    void update_around(int &target_cnt, Entry &entry, unordered_set<Entry, EntryHash> &lands_set) {
-        unordered_set<Entry, EntryHash>::iterator cur_it;
-        if ((cur_it = lands_set.find(entry)) != lands_set.end()) {
-            //如果四周坐标已被标记，增加标记计数，该计数为0时表示四周没有坐标被标记
-            target_cnt = cur_it->visited ? target_cnt + 1 : target_cnt;
-            cur_it->visited = true;
-        }
+    void dfs(vector<vector<char> > &grid, vector<vector<bool> > &visited, int &ret, int x, int y) {
+        //检查坐标是否合法
+        if (!check_postion_valid(x, y) || visited[x][y] || grid[x][y] == '0')
+            return;
+        //设置该点位被标记
+        visited[x][y] = true;
+        //检查四周是否都被访问过
+        //四周都没有被访问过，说明它为新的岛屿，增加计数
+        if (!get_round_target(visited, x - 1, y) && !get_round_target(visited, x + 1, y)
+            && !get_round_target(visited, x, y - 1) && !get_round_target(visited, x, y + 1))
+            ret++;
+        //深度遍历，走迷宫形式标记它周围的可能连接的岛屿
+        dfs(grid, visited, ret, x - 1, y);
+        dfs(grid, visited, ret, x + 1, y);
+        dfs(grid, visited, ret, x, y - 1);
+        dfs(grid, visited, ret, x, y + 1);
     }
 
 public:
     int numIslands(vector<vector<char> > &grid) {
-        //哈希表，存放的数对是坐标<x,y>，用于记录已经存在的岛屿坐标
-        unordered_set<Entry, EntryHash> lands_set;
-        int i, j, row_size = static_cast<int>(grid.size()), col_size = static_cast<int>(grid[0].size());
-        vector<pair<int,int>> cut_down_set;
-        //将岛屿坐标放到哈希表中
-        for (i = 0; i < row_size; ++i) {
-            for (j = 0; j < col_size; j++) {
-                if (grid[i][j] == '1'){
-                    lands_set.emplace(i, j);
-                    cut_down_set.emplace_back(i,j);
-                }
-            }
+        //需要采用回溯算法，深度遍历优先，走迷宫方式
+        row_size = static_cast<int>(grid.size());
+        col_size = static_cast<int>(grid[0].size());
+        //创建一个访问数组，供后续深度遍历时判断
+        vector<vector<bool> > visited(row_size);
+        int ret = 0, x, y;
+        for (x = 0; x < row_size; ++x) {
+            vector<bool> vc(col_size, false);
+            visited[x] = vc;
         }
-        //遍历哈希表每个坐标如果它的四周坐标有一个存在在哈希表中，就将他视作一个岛屿。
-        //否则就增加一个岛屿计数
-        if (lands_set.empty())
-            return 0;
-        int cnt = 0;
-        for (auto &en: cut_down_set) {
-            int cur_x = en.first, cur_y = en.second;
-            //1、如果该坐标还未被标记，需要查看四周是否有标记的坐标。
-            //如果有，说明该坐标与已记录的岛屿相连，不能增加计数
-            //如果四周没有被标记，计数+1
-            //2、如果该坐标已被标记，直接标记四周还未标记的坐标
-            //无论上述情况是哪种，都需要把四周存在的岛屿全部标记
-            int target_cnt = 0;
-            Entry entry{cur_x - 1, cur_y};
-            update_around(target_cnt, entry, lands_set);
-            entry.x = cur_x + 1;
-            update_around(target_cnt, entry, lands_set);
-            entry.x = cur_x;
-            entry.y = cur_y - 1;
-            update_around(target_cnt, entry, lands_set);
-            entry.y = cur_y + 1;
-            update_around(target_cnt, entry, lands_set);
-            //只有当前节点未被标记且四周也未被标记时，才可以增加有效计数
-            unordered_set<Entry, EntryHash>::iterator cur_it = lands_set.find(Entry{cur_x,cur_y});
-            if (cur_it->visited == false && target_cnt == 0)
-                cnt++;
-            //最后都需要把当前坐标标记
-            cur_it->visited = true;
-        }
-        return cnt;
+        for (x = 0; x < row_size; ++x)
+            for (y = 0; y < col_size; ++y)
+                dfs(grid, visited, ret, x, y);
+        return ret;
     }
 };
+
 /* 
 测试不通过：
 结果=2，答案=1
@@ -135,14 +106,25 @@ public:
 [1,0,1,0,1]
 [1,1,1,0,1]
 */
-int main() {
-    vector<vector<char> > grid{
-        {'1', '1', '1', '1', '0'},
-        {'1', '1', '0', '1', '0'},
-        {'1', '1', '0', '0', '0'},
-        {'0', '0', '0', '0', '0'}
-    };
-    Solution sl;
-    cout << sl.numIslands(grid) << endl;
-    return 0;
-}
+// int main() {
+//     vector<vector<char> > grid{
+//         {
+//             1, 0, 1, 1, 1
+//         },
+//         {
+//             1, 0, 1, 0, 1
+//         },
+//         {
+//             1, 1, 1, 0, 1
+//         }
+//     };
+//     // vector<vector<char> > grid{
+//     //     {'1', '1', '1', '1', '0'},
+//     //     {'1', '1', '0', '1', '0'},
+//     //     {'1', '1', '0', '0', '0'},
+//     //     {'0', '0', '0', '0', '0'}
+//     // };
+//     Solution sl;
+//     cout << sl.numIslands(grid) << endl;
+//     return 0;
+// }

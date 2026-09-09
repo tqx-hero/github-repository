@@ -19,7 +19,12 @@
             "args": [],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
-            "environment": [],
+            
+            //"environment": [],
+            "environment": [
+                {"name": "LC_ALL", "value": "C.UTF-8"},
+                {"name": "LANG", "value": "C.UTF-8"}
+            ],
             "externalConsole": false,
             "MIMode": "gdb",
             // =========这里改成你自己mingw64下gdb.exe完整路径=========
@@ -32,5 +37,17 @@
                 }
             ]
         }
+//         ,
+//         {
+//     "name": "CodeLLDB Launch",
+//     "type": "lldb",
+//     "request": "launch",
+//     "program": "${fileDirname}/${fileBasenameNoExtension}.exe",
+//     "args": [],
+//     "cwd": "${fileDirname}",
+//     // "stopAtEntry": false,
+//     "sourceMap": []
+// }
+
     ]
 }

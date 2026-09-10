@@ -433,7 +433,236 @@
 
     ![image-20260910171428882](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260910171428882.png)
 
-39. 
+39. 查看环境变量，以及设置的变量值：
+
+    ```shell
+    env		#查看环境变量
+    export -p #查看所有变量值
+    export command="ls && cat file" #设置环境变量的变量值command,可以使用export -p 查看到
+    ```
+
+    ![image-20260910215219358](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260910215219358.png)
+
+    ![image-20260910215233396](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260910215233396.png)
+
+40. 分别执行多条指令：
+
+    ```shell
+    #指令可以有多条，指令之间用;隔开
+    eval ls ./;hostname	#分别执行查看当前目录下的文件、查看当前用户名这两条指令
+    ```
+
+    ![image-20260910220844492](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260910220844492.png)
+
+41. 显示文件的内容：
+
+    ```shell
+    #显示文件的内容,同时显示行号
+    nl file
+    #显示文件的信息
+    wc [-clw][--help][--version][file...]
+    -c: --bytes/--chars,只显示字节数
+    -l: --lines显示行数
+    -w: --words显示字数
+    --help: 帮助文档
+    --version: 版本
+    ```
+
+    ![image-20260910221643993](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260910221643993.png)
+
+    ![image-20260910224102412](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260910224102412.png)
+
+42. 修改文件内容：
+
+    ```shell
+    #Linux sed 命令
+    #可依照脚本的指令来处理、编辑文本文件,只是进行处理工作，如果持久化就需要重定向
+    sed [-hnV][-e<script>][-f<script文件>][文本文件file]
+    ```
+
+    **Option：**
+
+    - -h: --help
+    - -n: --quiet或--silent 仅显示script处理后的结果。
+    - -V: --version
+    - -e<script>: --expression=<scrpit>,以选中的script脚本来处理输入的文本文件file
+    - -f<script文件>: --file=<script文件>，以选中的script文件来处理输入的文本文件file
+
+    **动作说明：**
+
+    - a:新增，a的后面接字符串，字符串可以在当前行的下一行出现。
+    - c:取代， c 的后面可以接字串，这些字串可以取代 n1,n2 之间的行
+    - d ：删除，因为是删除啊，所以 d 后面通常不接任何东东
+    - i ：插入， i 的后面可以接字串，而这些字串会在新的一行出现(目前的上一行)；
+    - p ：打印，亦即将某个选择的数据印出。通常 p 会与参数 sed -n 一起运行～
+    - s ：取代，可以直接进行取代的工作哩！通常这个 s 的动作可以搭配正则表达式！例如 1,20s/old/new/g 就是啦！
+
+    ```shell
+    #显示sed_test.c(包括行号)，删除文本的34-38行，最后输出到sed_test1.c
+    nl sed_test.c | sed -e '34,38d' > sed_test1.c
+    ```
+
+    
+
+    ![image-20260910224756598](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260910224756598.png)
+
+    **使用d删除范围内的内容**
+
+    ```shell
+    #删除sed_test.c文件的第30行到最后(未持久化)
+    tqx@linux-ubuntu:~$ nl sed_test.c | sed '3,$d'
+         1  #include <stdio.h>
+         2  /**
+    ```
+
+    **使用a在第四行后面一行新增字符串：**
+
+    ```shell
+    #在第4行追加文本hahahahhaha
+    tqx@linux-ubuntu:~$ nl sed_test.c | sed -e '4a hahahahahahhaha'
+         1  #include <stdio.h>
+         2  /**
+         3          sscanf高级用法
+         4  */
+    hahahahahahhaha
+         5  int main1(){
+         6          //%s只要遇到\0、\n、空格等会结束匹配
+         7          char *ptr="hello1234",buf[10];
+         8          int num1,num2;
+         9          //%ns 表示需要截取n个字符到相应的内存中
+        10          //%nd 表示需要截取n个字符转换成整型存放到相应的内存中
+        11          //sscanf(ptr,"%5s%2d%2d",buf,&num1,&num2);
+        12          //printf("%s %d %d\n",buf,num1,num2);
+        13          //可以通过*跳过n个字符
+        14          sscanf(ptr,"%5s%*2d%2d",buf,&num1);
+        15          printf("%s %d\n",buf,num1);
+        16          return 0;
+        17  }
+    ```
+
+    **使用i在第四行前面一行追加字符串：**
+
+    ```shell
+    #在第四行前面添加字符串wwwwwwwwwwwwwwwww
+    tqx@linux-ubuntu:~$ nl sed_test.c | sed -e '4i wwwwwwwwwwwwwwwwwww'
+         1  #include <stdio.h>
+         2  /**
+         3          sscanf高级用法
+    wwwwwwwwwwwwwwwwwww
+    ```
+
+    **使用换行符\可以达到换行放置多行的效果**
+
+    ```shell
+    #在追加放入字符串的同时使用\放置多行
+    tqx@linux-ubuntu:~$ nl sed_test.c | sed -e '3a wwwwwwwwwwwwwwwwwww \
+    > kkkkkkkkkkkkkkkkkkkk'
+         1  #include <stdio.h>
+         2  /**
+         3          sscanf高级用法
+    wwwwwwwwwwwwwwwwwww
+    kkkkkkkkkkkkkkkkkkkk
+         4  */
+         5  int main1(){
+         6          //%s只要遇到\0、\n、空格等会结束匹配
+         7          char *ptr="hello1234",buf[10];
+         8          int num1,num2;
+         9          //%ns 表示需要截取n个字符到相应的内存中
+        10          //%nd 表示需要截取n个字符转换成整型存放到相应的内存中
+        11          //sscanf(ptr,"%5s%2d%2d",buf,&num1,&num2);
+        12          //printf("%s %d %d\n",buf,num1,num2);
+        13          //可以通过*跳过n个字符
+        14          sscanf(ptr,"%5s%*2d%2d",buf,&num1);
+        15          printf("%s %d\n",buf,num1);
+        16          return 0;
+        17  }
+    ```
+
+    **使用c进行按行替换：**
+
+    ```shell
+    #替换第三行内容
+    tqx@linux-ubuntu:~$ nl sed_test.c | sed  -e '3c 你是我的，我是你的谁 \
+    > 再多看一眼就会爆炸'
+         1  #include <stdio.h>
+         2  /**
+    你是我的，我是你的谁
+    再多看一眼就会爆炸
+         4  */
+         5  int main1(){
+    ```
+
+    **可使用s进行按照正则表达式匹配替换：**
+
+    ```shell
+    #将所有main替换成真正的man，g表示全局替换,不写g代表只替换每行的第一个
+    tqx@linux-ubuntu:~$ nl sed_test.c | sed -e 's/main/真正的man/g'
+         1  #include <stdio.h>
+         2  /**
+         3          sscanf高级用法
+         4  */
+         5  int 真正的man1(){
+         6          //%s只要遇到\0、\n、空格等会结束匹配
+         7          char *ptr="hello1234",buf[10];
+         8          int num1,num2;
+         9          //%ns 表示需要截取n个字符到相应的内存中
+        10          //%nd 表示需要截取n个字符转换成整型存放到相应的内存中
+        11          //sscanf(ptr,"%5s%2d%2d",buf,&num1,&num2);
+        12          //printf("%s %d %d\n",buf,num1,num2);
+        13          //可以通过*跳过n个字符
+        14          sscanf(ptr,"%5s%*2d%2d",buf,&num1);
+        15          printf("%s %d\n",buf,num1);
+        16          return 0;
+        17  }
+    
+        18  int 真正的man2(){
+        19          //使用正则表达式进行自动匹配
+        20          char buf[]="hgdsdsaodisajDDDSsna129",recv_buf[100];
+        21          int num;
+        22          //通过正则表达式%[a-z](或者使用[a-i]获取a-i区间内的字符)匹配所有字符串
+        23          //如果需要匹配所有大小写字符，写法是：%[A-Za-z]
+        24          //适用于不清楚需要截取多少个字符的情况下
+        25          //sscanf(buf,"%[a-z]%2d",recv_buf,&num);
+        26          //printf("%s %d\n",recv_buf,num);
+        27          //可以与*一起使用，表示屏蔽所有a-z的字符
+        28          sscanf(buf,"%*[a-zA-Z]%d",&num);
+        29          printf("%d\n",num);
+        30          return 0;
+        31  }
+    
+        32  int 真正的man(){
+    ```
+
+    **可以使用i来直接对文本进行修改：**
+
+    ```shell
+    #用-i 替换 -e，可以直接对文本进行修改
+    tqx@linux-ubuntu:~$ sed -i 's/main/真正的man/g' sed_test.c
+    tqx@linux-ubuntu:~$ cat sed_test.c
+    #include <stdio.h>
+    /**
+            sscanf高级用法
+    */
+    int 真正的man1(){
+            //%s只要遇到\0、\n、空格等会结束匹配
+            char *ptr="hello1234",buf[10];
+            int num1,num2;
+            //%ns 表示需要截取n个字符到相应的内存中
+            //%nd 表示需要截取n个字符转换成整型存放到相应的内存中
+            //sscanf(ptr,"%5s%2d%2d",buf,&num1,&num2);
+            //printf("%s %d %d\n",buf,num1,num2);
+            //可以通过*跳过n个字符
+            sscanf(ptr,"%5s%*2d%2d",buf,&num1);
+            printf("%s %d\n",buf,num1);
+            return 0;
+    }
+    
+    int 真正的man2(){
+    ```
+
+    
+
+43. 
 
 
 

@@ -374,5 +374,66 @@
 
     ![image-20260909180846188](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260909180846188.png)
 
-34. 
+34. 查看键入的命令历史记录：
+
+    ```shell
+    history
+    #在文件~/.bash_history,当进程结束时，系统会把新敲的命令追加到该文件后面
+    history [-c] [-d offset] [n]
+    -c:	清空历史记录。注意清空的是内存中的记录，而不会直接清空文件
+    -d offset: 删除某一项，offset为序号
+    n:	仅展示最后的n项
+    #重新执行第2011条指令(在history中记录的第2011条指令)
+    !2011
+    #执行倒数第2条指令
+    !-2
+    ```
+
+    ![image-20260910132220753](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260910132220753.png)
+
+    ![image-20260910133140773](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260910133140773.png)
+
+35. shell快捷键：
+
+    ```shell
+    ctrl + s	#锁屏幕，不再显示输入信息，但是指令还是会执行
+    ctrl + q	#解除锁屏幕状态
+    ctrl + u	#删除光标前面的所有信息
+    ctrl + k	#删除光标后面的所有信息
+    alt + r 	#删除整行，必须是手动键入的才行 
+    ```
+
+    
+
+36. 大体了解指令的作用：
+
+    ```shell
+    whatis rm 	#打印出rm命令的作用
+    man -f rm	#与上述指令等价
+    ```
+
+    
+
+37. 生成man文档：
+
+    ```shell
+    mandb
+    ```
+
+    
+
+38. 显示日期：
+
+    ```shell
+    date +%F%T	#显示日期+时间
+    %T:	相当于%H:%M:%S
+    #生成日期+时间命名的日志文件：
+    touch `date +"%F-%H_%M_%S"`.log
+    ```
+
+    ![image-20260910171428882](C:\Users\田庆新\AppData\Roaming\Typora\typora-user-images\image-20260910171428882.png)
+
+39. 
+
+
 

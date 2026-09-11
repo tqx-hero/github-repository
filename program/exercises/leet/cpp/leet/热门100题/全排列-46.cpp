@@ -33,40 +33,43 @@ nums 中的所有整数 互不相同
 #include <iostream>
 using namespace std;
 class Solution {
-
-    int size =0;
-
-    int get_index(vector<int> &visited){
-        int i =0;
-        for(;i<size && visited[i];++i);
-        return i;
-    }
-
-    void dfs(vector<int>&nums,vector<int>& vc,vector<int> &visited,int i,int& sum){
-        vc.push_back(nums[i]);
-        visited[i] = 1;
-        ++sum;
-        //查找后面第一个未访问的节点
-        if(sum == size)
+    vector<vector<int>> ret;
+    int num_size=0;
+    void dfs(vector<int>&nums,vector<int>& vc,vector<int> &visited){
+        //如果收集完一轮,统计结果
+        if(vc.size() == num_size){
+            ret.push_back(vc);
             return;
-        dfs(nums,vc,visited,get_index(visited),sum);
+        }
+        for(int i=0;i<num_size;++i){
+            //如果当前节点还没加到数组，添加到数组
+            if(!visited[i]){
+                vc.push_back(nums[i]);
+                //标记当前元素已加入数组
+                visited[i] = 1;
+                //递归放入其他元素
+                dfs(nums,vc,visited);
+                //走到这里已经收集完成一轮了，回溯
+                visited[i] = 0;
+                vc.pop_back();
+            }
+        }
     }
 
 public:
     vector<vector<int>> permute(vector<int>& nums) {
-        size = static_cast<int>(nums.size());
-        vector<vector<int>> ret;
-        for(int i=0;i<size;++i){
-            int sum = 0;
-            vector<int> visited(size,0);
-            vector<int> vc(size);
-            dfs(nums,vc,visited,i,sum);
-            ret.push_back(vc);
-        }
+        num_size = static_cast<int>(nums.size());
+        vector<int> visited(num_size,0);
+        vector<int> vc;
+        vc.reserve(num_size);
+        dfs(nums,vc,visited);
         return ret;
     }
 };
 
 // int main(){
+//     vector<int> nums{1,2,3};
+//     Solution sl;
+
 //     return 0;
 // }

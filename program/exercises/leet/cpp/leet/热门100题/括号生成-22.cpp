@@ -27,12 +27,37 @@ premium lock icon
 #include <string>
 #include <stack>
 using namespace std;
-//TODO
-class Solution {
 
+class Solution {
+    vector<string> ret;
+    void build_str(string& str,int left_cnt,int right_cnt){
+        //左右括号都放入完毕，统计生成的子串
+        if(!left_cnt && !right_cnt){
+            ret.push_back(str);
+            return;
+        }
+        //还有没放入的括号，先放可能存在的左括号
+        if(left_cnt){
+            str.push_back('(');
+            //处理放入左括号后的后续情况
+            build_str(str,left_cnt-1,right_cnt);
+            //回溯，将左括号拿出来，还原初始状态
+            str.pop_back();
+        }
+        //处理完上述情况后，在处理能放入右括号的情况
+        if(right_cnt > left_cnt){
+            str.push_back(')');
+            build_str(str,left_cnt,right_cnt-1);
+            str.pop_back();
+        }
+    }
 public:
-    // vector<string> generateParenthesis(int n) {
-    // }
+    vector<string> generateParenthesis(int n) {
+        string str;
+        str.reserve(n << 1);
+        build_str(str,n,n);
+        return ret;
+    }
 };
 
 // int main(){

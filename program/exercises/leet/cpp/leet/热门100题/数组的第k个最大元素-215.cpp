@@ -45,10 +45,10 @@ public:
     }
 };
 
-int main(){
-    vector<int> nums{3,2,1,5,6,4};
-    int k=2;
-    Solution sl;
-    cout << sl.findKthLargest(nums,k) << endl;
-    return 0;
-}
+// int main(){
+//     vector<int> nums{3,2,1,5,6,4};
+//     int k=2;
+//     Solution sl;
+//     cout << sl.findKthLargest(nums,k) << endl;
+//     return 0;
+// }

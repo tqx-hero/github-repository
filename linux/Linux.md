@@ -662,4 +662,44 @@
 
     
 
-43. 
+43. 可以修改PATH变量值，添加bash搜索路径(临时)：
+
+    ```bash
+    #/home/tqx/linux-learn/path路径下存在可执行文件test_path
+    tqx@linux-ubuntu:~/linux-learn/path$ ls
+    path.c  test_path
+    #在未添加环境变量情况下不能直接调用test_path,bash从PATH路径中无法查询到这个可执行程序
+    tqx@linux-ubuntu:~/linux-learn/path$ test_path
+    test_path: command not found
+    tqx@linux-ubuntu:~/linux-learn/path$ ./test_path
+    helloworld !!!
+    tqx@linux-ubuntu:~/linux-learn/path$ echo $PATH
+    /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+    #将当前路径添加到PATH下，之后bash子进程就可以找到该程序执行。这里当然是临时添加，持久化需要修改文件(~/.profile或者~/.bashrc)
+    tqx@linux-ubuntu:~/linux-learn/path$ export PATH=$PATH:/home/tqx/linux-learn/path
+    tqx@linux-ubuntu:~/linux-learn/path$ !-2
+    echo $PATH
+    /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/tqx/linux-learn/path
+    tqx@linux-ubuntu:~/linux-learn/path$ test_path
+    helloworld !!!
+    #~/.bashrc文件添加环境变量，在执行 .  ~/.bashrc
+    118
+    119 # 增加自定义别名
+    120 #alias cps="cd /usr/include"
+    121 #添加环境变量
+    122 export PATH=$PATH:/home/tqx/linux-learn/path
+    ```
+
+    
+
+44. 显示文件类型：
+
+    ```bash
+    file file_name.txt
+    tqx@linux-ubuntu:~/linux-learn/param$ file param.sh
+    param.sh: Bourne-Again shell script, UTF-8 Unicode text executable
+    ```
+
+    
+
+45. 

@@ -711,4 +711,116 @@
 
     
 
-46. 
+46. 显示文件的十六进制形式：
+
+    ```bash
+    hexdump [-C...] file.txt	#显示文件的十六进制形式，并输出他们的ASCII
+    tqx@linux-ubuntu:~/linux-learn$ hexdump -C windows-test.txt		#输出windows下创建的文件abc，占7个字节s
+    00000000  61 0d 0a 62 0d 0a 63                              |a..b..c|
+    00000007
+    tqx@linux-ubuntu:~/linux-learn$ hexdump -C linux-test.txt		#输出linux创建的文件abc，占6个字节,换行少了\r
+    00000000  61 0a 62 0a 63 0a                                 |a.b.c.|
+    00000006
+    ```
+
+    
+
+47. 格式转换：
+
+    ```bash
+    dow2unix file.txt	#将windows、mac系统下的文件转化为unix系统下的格式
+    tqx@linux-ubuntu:~/linux-learn$ dos2unix windows-test.txt
+    dos2unix: converting file windows-test.txt to Unix format...
+    tqx@linux-ubuntu:~/linux-learn$ ls -l
+    total 32
+    -rwxrwxr-x 1 tqx tqx   40 Sep  5 17:38 alias
+    -rwxrwxr-x 1 tqx tqx  356 Sep 11 16:09 bash1
+    -rwxrwxr-x 1 tqx tqx  326 Sep 13 16:55 echo.sh
+    -rwxrwxr-x 1 tqx tqx   59 Sep  5 17:05 eo
+    -rw-rw-r-- 1 tqx tqx    6 Sep 13 17:04 linux-test.txt
+    drwxrwxr-x 2 tqx tqx 4096 Sep 12 18:08 param
+    drwxrwxr-x 2 tqx tqx 4096 Sep 12 16:45 path
+    -rw-rw-r-- 1 tqx tqx    5 Sep 13 17:07 windows-test.txt
+    tqx@linux-ubuntu:~/linux-learn$ hexdump -C windows-test.txt		#将该文件转化为unix风格之后，删除了\r字符
+    00000000  61 0a 62 0a 63                                    |a.b.c|
+    00000005
+    ```
+
+    ```bash
+    unix2dos file.txt	#将unix下的文件转化为dos、mac风格
+    tqx@linux-ubuntu:~/linux-learn$ unix2dos windows-test.txt
+    unix2dos: converting file windows-test.txt to DOS format...
+    tqx@linux-ubuntu:~/linux-learn$ ls -l
+    total 32
+    -rwxrwxr-x 1 tqx tqx   40 Sep  5 17:38 alias
+    -rwxrwxr-x 1 tqx tqx  356 Sep 11 16:09 bash1
+    -rwxrwxr-x 1 tqx tqx  326 Sep 13 16:55 echo.sh
+    -rwxrwxr-x 1 tqx tqx   59 Sep  5 17:05 eo
+    -rw-rw-r-- 1 tqx tqx    6 Sep 13 17:04 linux-test.txt
+    drwxrwxr-x 2 tqx tqx 4096 Sep 12 18:08 param
+    drwxrwxr-x 2 tqx tqx 4096 Sep 12 16:45 path
+    -rw-rw-r-- 1 tqx tqx    7 Sep 13 17:12 windows-test.txt
+    tqx@linux-ubuntu:~/linux-learn$ hexdump windows-test.txt -C		#转换后添加上了\r
+    00000000  61 0d 0a 62 0d 0a 63                              |a..b..c|
+    00000007
+    ```
+
+    
+
+48. 编码转换：
+
+    ```bash
+    iconv [options] file	#转换编码格式
+    Usage: iconv [OPTION...] [FILE...]
+    Convert encoding of given files from one encoding to another.
+    
+     Input/Output format specification:
+      -f, --from-code=NAME       encoding of original text
+      -t, --to-code=NAME         encoding for output
+    
+     Information:
+      -l, --list                 list all known coded character sets
+    
+     Output control:
+      -c                         omit invalid characters from output
+      -o, --output=FILE          output file
+      -s, --silent               suppress warnings
+          --verbose              print progress information
+    
+      -?, --help                 Give this help list
+          --usage                Give a short usage message
+      -V, --version              Print program version
+    ```
+
+    DEMO:
+
+    ```bash
+    #将文件gbk.txt 转换为utf8格式：
+    iconv -f gb2312 gbk.txt [-t utf-8] -o gbk2utf8.txt
+    
+    tqx@linux-ubuntu:~/linux-learn$ file gbk.txt	#显示文本格式
+    gbk.txt: ISO-8859 text, with no line terminators
+    tqx@linux-ubuntu:~/linux-learn$ iconv -f gb2312 gbk.txt -t utf-8 -o gbk2utf8.txt
+    tqx@linux-ubuntu:~/linux-learn$ ll
+    total 104
+    drwxrwxr-x  4 tqx tqx 61440 Sep 13 17:38 ./
+    drwxr-xr-x 28 tqx tqx  4096 Sep 13 17:08 ../
+    -rwxrwxr-x  1 tqx tqx    40 Sep  5 17:38 alias*
+    -rwxrwxr-x  1 tqx tqx   356 Sep 11 16:09 bash1*
+    -rwxrwxr-x  1 tqx tqx   326 Sep 13 16:55 echo.sh*
+    -rwxrwxr-x  1 tqx tqx    59 Sep  5 17:05 eo*
+    -rw-rw-r--  1 tqx tqx     9 Sep 13 17:38 gbk2utf8.txt	#转换后字节数由6个增加到9个
+    -rw-rw-r--  1 tqx tqx     6 Sep 13 17:32 gbk.txt
+    -rw-rw-r--  1 tqx tqx     6 Sep 13 17:04 linux-test.txt
+    drwxrwxr-x  2 tqx tqx  4096 Sep 12 18:08 param/
+    drwxrwxr-x  2 tqx tqx  4096 Sep 12 16:45 path/
+    -rw-rw-r--  1 tqx tqx     7 Sep 13 17:12 windows-test.txt
+    tqx@linux-ubuntu:~/linux-learn$ cat gbk2utf8.txt
+    大家好tqx@linux-ubuntu:~/linux-learn$
+    tqx@linux-ubuntu:~/linux-learn$ file gbk2utf8.txt`	#转换后的文本格式为utf-8
+    gbk2utf8.txt: UTF-8 Unicode text, with no line terminators
+    ```
+
+    
+
+49. 

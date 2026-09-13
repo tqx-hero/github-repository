@@ -1,0 +1,2 @@
+#!/bin/bash
+echo "测试source与.命令，执行sh文件"

@@ -159,4 +159,103 @@
 
    
 
-10. 
+10. 特殊符号：
+
+    ```bash
+    #指令：``用于执行内部指令，等同于$()
+    `date`
+    $(pwd)
+    #$name:用于获取变量name的值
+    echo $name
+    #"":弱引用类型，被包裹的字符串中使用特殊字符可以被解析
+    echo "$name"	#可以被解释成取name的值
+    # '':强引用类型，只会把内容当成字符串输出
+    echo '$name' #输出$name
+    # ( 内容 )：fork子进程去执行括号内的脚本
+    # { 内容; }:当前进程执行该脚本
+    ```
+
+    DEMO：
+
+    ```bash
+      1 #!/bin/bash
+      2 echo "测试source与.命令，执行sh文件"
+      3
+      4 echo "HOME =  $HOME"
+      5 echo "今天 = `date`"
+      6 echo "当前目录= $(pwd)"
+      7
+      8 name=student
+      9 ( name="张三"
+     10 echo "子进程= $name" )
+     11 echo "当前进程 = $name"
+     12 { name="李四";echo "当前进程{} = $name"; }
+     13 echo "当前进程2 = $name"
+    ```
+
+    输出如下：
+
+    ```bash
+    tqx@linux-ubuntu:~/linux-learn$ ./echo.sh
+    测试source与.命令，执行sh文件
+    HOME =  /home/tqx
+    今天 = Sun 13 Sep 2026 04:47:32 PM CST
+    当前目录= /home/tqx/linux-learn
+    子进程= 张三	# (  )内容在子进程执行，变量不会影响当前进程
+    当前进程 = student
+    当前进程{} = 李四	# {  }内容在当前进程执行，变量值改变
+    当前进程2 = 李四
+    ```
+
+    
+
+11. 测试文件存不存在：
+
+    ```bash
+    test [options] file 	#测试文件是否满足条件，满足返回0，不满足返回1
+    #可以使用[ [options] file ]形式,与上述相同
+    
+    #选项很多，列出几项：
+    -e	: 	是否存在
+    -f	:	是否为普通文件
+    -d	:	是否为目录
+    -b	:	是否为块设备
+    -c	:	是否为字符设备
+    -r	:	是否可读（当前用户的权限）
+    -w	:	是否可写（当前用户的权限）
+    -x	：	是否可执行（当前用户的权限）
+    -L	：	是否为链接文件
+    -s	：	是否内容非空
+    ```
+
+    ```bash
+    tqx@linux-ubuntu:~/linux-learn$ test -e /etc/file
+    tqx@linux-ubuntu:~/linux-learn$ echo $?
+    1
+    
+    tqx@linux-ubuntu:~/linux-learn$ test -e ./windows-test.txt
+    tqx@linux-ubuntu:~/linux-learn$ echo $?
+    0
+    
+    tqx@linux-ubuntu:~/linux-learn$ test -f windows-test.txt
+    tqx@linux-ubuntu:~/linux-learn$ echo $?
+    0
+    
+    tqx@linux-ubuntu:~/linux-learn$ test -d windows-test.txt
+    tqx@linux-ubuntu:~/linux-learn$ !-2
+    echo $?
+    1
+    ```
+
+    使用[]表达式形式：
+
+    ```bash
+    #注意 [ expression ]，方括号与表达式之间必须有空格 
+    tqx@linux-ubuntu:~/linux-learn$ [ -e windows-test.txt ]	#等价于： test -e windows-test.txt
+    tqx@linux-ubuntu:~/linux-learn$ echo $?
+    0
+    ```
+
+    
+
+12. 

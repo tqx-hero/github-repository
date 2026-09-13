@@ -1,127 +1,80 @@
 /**
- * 79. 单词搜索
+ * 33. 搜索旋转排序数组
 中等
 相关标签
 premium lock icon
 相关企业
-给定一个 m x n 二维字符网格 board 和一个字符串单词 word 。如果 word 存在于网格中，返回 true ；否则，返回 false 。
+整数数组 nums 按升序排列，数组中的值 互不相同 。
 
-单词必须按照字母顺序，通过相邻的单元格内的字母构成，其中“相邻”单元格是那些水平相邻或垂直相邻的单元格。同一个单元格内的字母不允许被重复使用。
+在传递给函数之前，nums 在预先未知的某个下标 k（0 <= k < nums.length）上进行了 向左旋转，使数组变为 [nums[k], nums[k+1], ..., nums[n-1], nums[0], nums[1], ..., nums[k-1]]（下标 从 0 开始 计数）。例如， [0,1,2,4,5,6,7] 下标 3 上向左旋转后可能变为 [4,5,6,7,0,1,2] 。
+
+给你 旋转后 的数组 nums 和一个整数 target ，如果 nums 中存在这个目标值 target ，则返回它的下标，否则返回 -1 。
+
+你必须设计一个时间复杂度为 O(log n) 的算法解决此问题。
 
  
 
 示例 1：
 
-
-输入：board = [['A','B','C','E'],['S','F','C','S'],['A','D','E','E']], word = "ABCCED"
-输出：true
+输入：nums = [4,5,6,7,0,1,2], target = 0
+输出：4
 示例 2：
 
-
-输入：board = [['A','B','C','E'],['S','F','C','S'],['A','D','E','E']], word = "SEE"
-输出：true
+输入：nums = [4,5,6,7,0,1,2], target = 3
+输出：-1
 示例 3：
 
-
-输入：board = [['A','B','C','E'],['S','F','C','S'],['A','D','E','E']], word = "ABCB"
-输出：false
+输入：nums = [1], target = 0
+输出：-1
  
 
 提示：
 
-m == board.length
-n = board[i].length
-1 <= m, n <= 6
-1 <= word.length <= 15
-board 和 word 仅由大小写英文字母组成
- 
-
-进阶：你可以使用搜索剪枝的技术来优化解决方案，使其在 board 更大的情况下可以更快解决问题？
+1 <= nums.length <= 5000
+-104 <= nums[i] <= 104
+nums 中的每个值都 独一无二
+题目数据保证 nums 在预先未知的某个下标上进行了旋转
+-104 <= target <= 104
  */
 #include <vector>
-#include <string>
 #include <iostream>
-#include <array>
+#include <algorithm>
 using namespace std;
-#define FIND_CONFIG if(find) \
-                        return;
-//优化思路：
-//1、可以统计一下模式串的各单词词频在二维数组中是否有足够数量。数量不足肯定不能拼出来。
-//2、再统计一下模式串首尾字符的词频，从词频更小的那一头开始匹配，这样就减少无用的递归次数.
+
 class Solution {
-    int row_size,col_size;
-    bool find =false,order;
-    void helper(vector<vector<char>>& board, string& word,int cur_index,int x,int y,
-        vector<vector<int>>& visited){
-        if(cur_index >= word.size() || cur_index < 0)
-        {
-            find =true;
-            return;
-        } 
-        if(x >=row_size || x <0 || y >= col_size || y < 0)
-            return;
-        //如果当前字符匹配字符串字符，且还没被标记
-        if(board[x][y] == word[cur_index] && !visited[x][y]){
-            visited[x][y] = 1;
-            int next_index = order ? cur_index+1 : cur_index -1;
-            helper(board,word,next_index,x-1,y,visited);
-            FIND_CONFIG
-            helper(board,word,next_index,x+1,y,visited);
-            FIND_CONFIG
-            helper(board,word,next_index,x,y-1,visited);
-            FIND_CONFIG
-            helper(board,word,next_index,x,y+1,visited);
-            FIND_CONFIG
-            visited[x][y] =0;
+    int binary_search_target(vector<int>&nums,int left,int right,int target){
+        if(left > right)
+            return -1;
+        //如果左边界小于右边界，该区间严格单调递增，直接二分查找是否存在
+        if(nums[left] < nums[right]){
+            auto it =  lower_bound(nums.begin()+left,nums.begin()+right+1,target);
+            if(it == nums.end() || *it != target)
+                return -1;
+            return static_cast<int>(it - nums.begin());
+        }else{
+            //左边界大于右边界，该区间有凹陷
+            int mid = left + (right - left) /2;
+            int mid_val = nums[mid],left_val = nums[left];
+            if(mid_val == target)
+                return mid;
+            if((left_val > mid_val && (mid_val > target || left_val <= target))
+                    ||
+                    (left_val < mid_val && mid_val > target && left_val <= target))
+                return binary_search_target(nums,left,mid-1,target);     
+            return binary_search_target(nums,mid+1,right,target);
         }
     }
 public:
-    bool exist(vector<vector<char>>& board, string word) {
-        int str_size = static_cast<int>(word.size());
-        row_size = static_cast<int>(board.size());
-        col_size = static_cast<int>(board[0].size());
-        //统计模式串的词频
-        array<int,64> s_char_cnt{0},v_cnt{0};
-        for(auto ch : word)
-            s_char_cnt[ch - 'A']++;
-        int i,j;
-        for(i=0;i<row_size;++i)
-            for(j=0;j<col_size;j++)
-                v_cnt[board[i][j] -'A']++;
-        //查看数组中字符个数是否符合模式串的要求
-        for(i =0;i<s_char_cnt.size();++i)
-            if(s_char_cnt[i] > v_cnt[i])
-                return false;
-        vector<vector<int>> visited(row_size,vector<int>(col_size,0));
-        order = s_char_cnt[word[0]-'A'] <= s_char_cnt[word[str_size-1]-'A'];
-        for(i=0;i<row_size;++i){
-            for(j=0;j<col_size;++j){
-                helper(board,word,order ? 0 : str_size - 1 ,i,j,visited);
-                if(find)
-                    return true;
-            }
-        }
-        return false;
+    int search(vector<int>& nums, int target) {
+        return binary_search_target(nums,0,nums.size()-1,target);
     }
 };
 
 // int main(){
-//     // vector<vector<char>> board = {{'A','B','C','E'},{'S','F','C','S'},{'A','D','E','E'}};
-//     // string word = "ABCCED";
-//     //board = [['A','B','C','E'],['S','F','C','S'],['A','D','E','E']], word = "SEE"
-//     // vector<vector<char>> board = {{'A','B','C','E'},{'S','F','C','S'},{'A','D','E','E'}};
-//     // string word = "SEE";
-//     // [["A","A","A","A","A","A"],["A","A","A","A","A","A"],["A","A","A","A","A","A"],["A","A","A","A","A","A"],["A","A","A","A","A","B"],["A","A","A","A","B","A"]]
-//     vector<vector<char>> board = {
-//         {'A','A','A','A','A','A'},
-//         {'A','A','A','A','A','A'},
-//         {'A','A','A','A','A','A'},
-//         {'A','A','A','A','A','A'},
-//         {'A','A','A','A','A','B'},
-//         {'A','A','A','A','B','A'}
-//     };
-//     string word = "AAAAAAAAAAAAABB";
+//     //nums = [4,5,6,7,0,1,2], target = 0
+//     vector<int> nums{4,5,6,7,0,1,2};
+//     int target =0;
 //     Solution sl;
-//     cout << sl.exist(board,word) << endl;
+//     cout << sl.search(nums,target) << endl;
 //     return 0;
 // }

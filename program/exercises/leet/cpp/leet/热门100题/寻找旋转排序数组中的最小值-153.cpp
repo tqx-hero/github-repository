@@ -62,9 +62,9 @@ public:
     }
 };
 
-int main(){
-    vector<int> nums{3,4,5,1,2};
-    Solution sl;
-    cout << sl.findMin(nums) << endl;
-    return 0;
-}
+// int main(){
+//     vector<int> nums{3,4,5,1,2};
+//     Solution sl;
+//     cout << sl.findMin(nums) << endl;
+//     return 0;
+// }

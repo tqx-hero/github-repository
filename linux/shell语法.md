@@ -307,4 +307,221 @@
 
     
 
-12. 
+12. 逻辑运算符&&、||、！：
+
+    ```bash
+    #可以使用逻辑运算符&&、||，!，效果等同于其他语言
+    tqx@linux-ubuntu:~/linux-learn/if$ [ -e ./name ] || echo "ttt"
+    ttt
+    tqx@linux-ubuntu:~/linux-learn/if$ [ -e /home ] || echo "ttt"
+    
+    tqx@linux-ubuntu:~$ [ -e /home ] && echo "home"; [ -f /home ] && echo "dir"
+    home
+    tqx@linux-ubuntu:~$ [ -e /home ] && echo "home"; [ -d /home ] && echo "dir"
+    home
+    dir
+    # !非运算符，表达式取反，取反后为真执行，为假不执行
+    tqx@linux-ubuntu:~/linux-learn/if$ [ ! -e /home ] && echo "11"	#测试/home存不存在，结果取反之后为假
+    tqx@linux-ubuntu:~/linux-learn/if$ [ ! -f /home ] && echo "11"	#测试/home是不是普通文件，结果取反后为真
+    11
+    ```
+
+    
+
+13. 条件运算符：
+
+    - if:
+
+      ```bash
+      #格式：
+      if expression ; then 	#或者then另起一行，去掉分号
+      ....
+      elif expression; then
+      ...
+      else 
+      ...
+      fi
+      ```
+
+      **demo:**
+
+      ```bash
+        1 #!/bin/bash
+        2
+        3 #表达式条件判断用法
+        4
+        5 if [ 10 -gt 20 ]
+        6 then
+        7         echo "10 > 20"
+        8 else
+        9         echo "10 < 20"
+       10 fi
+       11
+       12 declare -i n1=10+20
+       13 declare -i n2=20+10
+       14
+       15 if [ $n1 -gt $n2 ]; then
+       16         echo "10+20 > 20+10"
+       17 elif [ $n1 -lt $n2 ]; then
+       18         echo "10+20 < 20+10"
+       19 elif [ $n1 -eq $n2 ]; then
+       20         echo "10+20 = 20+10"
+       21 else
+       22         echo "error"
+       23         exit 1
+       24 fi
+       25
+       26 exit 0
+      ```
+
+      
+
+    - case:
+
+      ```bash
+      case 变量 in 
+      pattern [ | pattern...] ) ....;;	#case可以使用逻辑运算符|进行多个参数并在一起比较,结束标志是双分号
+      pattern [ | pattern ...] ) ....;;
+      ...
+      esac	#结束标志
+      ```
+
+      **demo:**
+
+      ```bash
+        1 #!/bin/bash
+        2
+        3 #case语句使用
+        4 echo "现在是早上吗？请输入yes/no"
+        5 read config
+        6 case "$config" in
+        7
+        8 'yes' | 'y' )   echo "您输入的是yes";;
+        9 'no' | 'n' )    echo "您输入的是no";;
+       10 * )     echo "输入不合法";;
+       11
+       12 esac
+       13
+       14 exit 0
+      ```
+
+      
+
+14. 循环语句：
+
+    - for:
+
+      **第一种：**
+
+      ```bash
+      for 变量 in values 
+      do
+      ...
+      done
+      ```
+
+      **demo:**
+
+      ```bash
+        1 #!/bin/bash
+        2 #for循环
+        3 array=(foo,bar,fu,mm)
+        4 for fn in $array; do
+        5         echo $fn
+        6 done
+        7 path=/home/tqx/
+        8 for file in $(ls "$path"*); do
+        9         [ -e "$file" ] || continue	#文件不存在直接跳过
+       10         if [ -f "$file" ]; then
+       11                 echo "$file is file"
+       12         elif [ -d "$file" ];then
+       13                 echo "$file is dir"
+       14         else
+       15                 echo "^_^"
+       16         fi
+       17
+       18 done
+       19
+       20 exit 0
+      ```
+
+      **第二种：**
+
+      ```bash
+      #与其他语言类似，不同的是使用双括号
+      for ((初值;循环条件;步长));do
+      ...
+      done
+      ```
+
+      **demo:**
+
+      ```bash
+        1 #!/bin/bash
+        2 #for循环第二种方式，迭代一定次数
+        3
+        4 declare -i sum
+        5
+        6 for((i=0;i<100;i=i+1)); do
+        7
+        8         sum=$sum+i
+        9 done
+       10 echo "sum = $sum"
+       11 exit 0
+      ```
+
+      
+
+    - **while:**
+
+      ```bash
+      while [ expression ];do	#条件成立，执行循环体
+      ...
+      done
+      ```
+
+      **demo:**
+
+      ```bash
+        1 #!/bin/bash
+        2 #while循环用法
+        3 declare -i sum=0
+        4 declare -i i=1
+        5
+        6 while [ "$i" -le  100 ]; do		#从1加到100
+        7         sum+=i	#可以使用+=，或者使用变量相加，但不能使用++、--。
+        8         i=i+1	#等号左右两边不能有空格
+        9 done
+       10 echo "sum = $sum"
+       11 exit 0
+      ```
+
+    - **until循环：**
+
+      ```bash
+      until [ expression ];do	#与while相反，条件不成立，执行循环体
+      ...
+      done
+      ```
+
+      **demo:**
+
+      ```bash
+        1 #!/bin/bash
+        2 #until循环使用，与while循环相反，当满足条件时跳出循环
+        3
+        4 declare -i sum=0
+        5 declare -i i=1
+        6
+        7 until [ "$i" -gt 100 ]; do
+        8
+        9         sum+=i
+       10         i+=1
+       11 done
+       12 echo "sum =$sum"
+       13 exit 0
+      ```
+
+      
+
+15. 

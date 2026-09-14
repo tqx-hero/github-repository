@@ -1,71 +1,111 @@
 /**
- * 153. 寻找旋转排序数组中的最小值
-中等
+ * 295. 数据流的中位数
+困难
 相关标签
 premium lock icon
 相关企业
-提示
-已知一个长度为 n 的数组，预先按照升序排列，经由 1 到 n 次 旋转 后，得到输入数组。例如，原数组 nums = [0,1,2,4,5,6,7] 在变化后可能得到：
-若旋转 4 次，则可以得到 [4,5,6,7,0,1,2]
-若旋转 7 次，则可以得到 [0,1,2,4,5,6,7]
-注意，数组 [a[0], a[1], a[2], ..., a[n-1]] 旋转一次 的结果为数组 [a[n-1], a[0], a[1], a[2], ..., a[n-2]] 。
+中位数是有序整数列表中的中间值。如果列表的大小是偶数，则没有中间值，中位数是两个中间值的平均值。
 
-给你一个元素值 互不相同 的数组 nums ，它原来是一个升序排列的数组，并按上述情形进行了多次旋转。请你找出并返回数组中的 最小元素 。
+例如 arr = [2,3,4] 的中位数是 3 。
+例如 arr = [2,3] 的中位数是 (2 + 3) / 2 = 2.5 。
+实现 MedianFinder 类:
 
-你必须设计一个时间复杂度为 O(log n) 的算法解决此问题。
+MedianFinder() 初始化 MedianFinder 对象。
 
- 
+void addNum(int num) 将数据流中的整数 num 添加到数据结构中。
+
+double findMedian() 返回到目前为止所有元素的中位数。与实际答案相差 10-5 以内的答案将被接受。
 
 示例 1：
 
-输入：nums = [3,4,5,1,2]
-输出：1
-解释：原数组为 [1,2,3,4,5] ，旋转 3 次得到输入数组。
-示例 2：
+输入
+["MedianFinder", "addNum", "addNum", "findMedian", "addNum", "findMedian"]
+[[], [1], [2], [], [3], []]
+输出
+[null, null, null, 1.5, null, 2.0]
 
-输入：nums = [4,5,6,7,0,1,2]
-输出：0
-解释：原数组为 [0,1,2,4,5,6,7] ，旋转 4 次得到输入数组。
-示例 3：
+解释
+MedianFinder medianFinder = new MedianFinder();
+medianFinder.addNum(1);    // arr = [1]
+medianFinder.addNum(2);    // arr = [1, 2]
+medianFinder.findMedian(); // 返回 1.5 ((1 + 2) / 2)
+medianFinder.addNum(3);    // arr[1, 2, 3]
+medianFinder.findMedian(); // return 2.0
+提示:
 
-输入：nums = [11,13,15,17]
-输出：11
-解释：原数组为 [11,13,15,17] ，旋转 4 次得到输入数组。
- 
-
-提示：
-
-n == nums.length
-1 <= n <= 5000
--5000 <= nums[i] <= 5000
-nums 中的所有整数 互不相同
-nums 原来是一个升序排序的数组，并进行了 1 至 n 次旋转
+-105 <= num <= 105
+在调用 findMedian 之前，数据结构中至少有一个元素
+最多 5 * 104 次调用 addNum 和 findMedian
  */
-#include <vector>
+#include <queue>
 #include <iostream>
 using namespace std;
+//使用两个堆维护数据流
+//大顶堆存放较小的那一半值，小顶堆存放较大的那一半值
+//维护两个堆的数量平衡，使得数量满足大顶堆 <= 小顶堆+1
+//在获取中位数时，奇数个就取大顶堆堆顶，偶数个就取(大堆顶+小堆顶) /2;数据超不过32位整型范围无需关心越界问题
+class MedianFinder {
+    priority_queue<int,vector<int>,greater<int>> min_heap;
+    priority_queue<int> max_heap;
 
-class Solution {
-    int get_minval(vector<int>& nums,int left,int right){
-        int left_val =nums[left];
-        if(left_val <= nums[right])
-            return left_val;
-        int mid = left + (right -left) / 2;
-        //中值大于左值，左区间严格递增，考察右区间
-        if(nums[mid] > left_val)
-            return get_minval(nums,mid+1,right);
-        return get_minval(nums,left+1,mid);
+    //平衡堆
+    void balance_heap(){
+        int max_heap_size = max_heap.size(),min_heap_size = min_heap.size();
+        if(max_heap_size == min_heap_size || max_heap_size == min_heap_size+1)
+            return;
+            //大顶堆数量过多,堆顶放入小顶堆
+        if(max_heap_size > min_heap_size){
+            min_heap.push(max_heap.top());
+            max_heap.pop();
+        }else{
+            //小顶堆数量过多，堆顶放入大顶堆
+            max_heap.push(min_heap.top());
+            min_heap.pop();
+        }
     }
+
 public:
-    int findMin(vector<int>& nums) {
-        return get_minval(nums,0,nums.size()-1);
+    MedianFinder() {
+        
+    }
+    
+    void addNum(int num) {
+        if(max_heap.empty()){
+            max_heap.push(num);
+            return;
+        }
+        //大小堆都不为空，那就比较num与大顶堆堆顶大小，大于堆顶直接入小顶堆，小于等于堆顶入大顶堆，再进行数量平衡
+        int max_val = max_heap.top();
+        if(max_val < num)
+            min_heap.push(num);
+        else
+            max_heap.push(num);
+        //平衡两个堆的元素数量,使大顶堆最多比小顶堆大1
+        if(max_heap.size() > min_heap.size()+1 || min_heap.size() > max_heap.size())
+            balance_heap();
+    }
+    
+    double findMedian() {
+        int total_size = max_heap.size()+min_heap.size();
+        //奇数个，取大顶堆堆顶
+        if(total_size %2)
+            return max_heap.top();
+        else
+            return (static_cast<double>(max_heap.top()) + static_cast<double>(min_heap.top())) /2;
     }
 };
-
+/* MedianFinder medianFinder = new MedianFinder();
+medianFinder.addNum(1);    // arr = [1]
+medianFinder.addNum(2);    // arr = [1, 2]
+medianFinder.findMedian(); // 返回 1.5 ((1 + 2) / 2)
+medianFinder.addNum(3);    // arr[1, 2, 3]
+medianFinder.findMedian(); // return 2.0 */
 // int main(){
-//     // vector<int> nums{3,4,5,1,2};
-//     vector<int> nums{4,5,6,7,0,1,2};
-//     Solution sl;
-//     cout << sl.findMin(nums) << endl;
+//     MedianFinder medianFinder;
+//     medianFinder.addNum(1);
+//     medianFinder.addNum(2);
+//     cout << medianFinder.findMedian() << endl;
+//     medianFinder.addNum(3);
+//     cout << medianFinder.findMedian() << endl;
 //     return 0;
 // }

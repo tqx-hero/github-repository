@@ -155,6 +155,14 @@
    ./param.sh	# $0下标为0的参数
    hallo	#下标为1的参数
    96256	#当前进程号
+   
+   tqx@linux-ubuntu:~/linux-learn/param$ ls > ls-`date +%F`-$$.log		#生成以日期+进程号格式的日志文件
+   tqx@linux-ubuntu:~/linux-learn/param$ ls
+   ls-2026-09-14-99118.log  param2.sh  param.sh
+   tqx@linux-ubuntu:~/linux-learn/param$ cat ls-2026-09-14-99118.log
+   ls-2026-09-14-99118.log
+   param2.sh
+   param.sh
    ```
 
    
@@ -169,6 +177,8 @@
     echo $name
     #"":弱引用类型，被包裹的字符串中使用特殊字符可以被解析
     echo "$name"	#可以被解释成取name的值
+    #可以使用转义字符\来解除echo对变量的解析，等价于使用''
+    echo "\$PATH"
     # '':强引用类型，只会把内容当成字符串输出
     echo '$name' #输出$name
     # ( 内容 )：fork子进程去执行括号内的脚本
@@ -176,6 +186,16 @@
     ```
 
     DEMO：
+
+    ```bash
+    tqx@linux-ubuntu:~$ echo "$PATH"
+    /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/tqx/linux-learn/path
+    
+    tqx@linux-ubuntu:~$ echo "\$PATH"
+    $PATH
+    ```
+
+    
 
     ```bash
       1 #!/bin/bash
@@ -191,6 +211,7 @@
      11 echo "当前进程 = $name"
      12 { name="李四";echo "当前进程{} = $name"; }
      13 echo "当前进程2 = $name"
+     
     ```
 
     输出如下：
@@ -205,6 +226,34 @@
     当前进程 = student
     当前进程{} = 李四	# {  }内容在当前进程执行，变量值改变
     当前进程2 = 李四
+    ```
+
+    引号的用法：
+
+    ```bash
+    #!/bin/bash
+    #引号的使用
+    
+    myparam=大家好才是真的好
+    echo 不带引号的= $myparam
+    echo "双引号的=$myparam"
+    echo '单引号的=$myparam'
+    echo "带转义字符\\的：\$myparam"
+    echo 请输入要修改的变量值:
+    read myparam
+    echo '当前myparam的变量值=' "$myparam"
+    exit 0;
+    
+    #输出
+    tqx@linux-ubuntu:~/linux-learn/param$ !-2
+    ./param2.sh
+    不带引号的= 大家好才是真的好
+    双引号的=大家好才是真的好
+    单引号的=$myparam
+    带转义字符\的：$myparam
+    请输入要修改的变量值:
+    我是谁
+    当前myparam的变量值= 我是谁
     ```
 
     

@@ -1,0 +1,7 @@
+value:
+  name: 张三
+  age: 23
+  hobby: [ 跳舞,打球,电竞 ]
+  grade:
+    语文:100
+    数学:140

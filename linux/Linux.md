@@ -872,6 +872,7 @@
     find . -empty	#查找空文件
     find . -size +0 -type f #查找所有大小大于0的文件
     find . -size 0 -type f > file	#查找所有文件大小为0的普通文件名称，输出到file文件中
+    find . -type d -size +0 -name ".git" -exec rm -rf {} +	#删除所有该目录下名为.git的不为空的文件夹及其内容
     ```
 
     

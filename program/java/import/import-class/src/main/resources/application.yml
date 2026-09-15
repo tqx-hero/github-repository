@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: import-class
+
+my:
+  selects:
+    list:
+      - com.spring.importclass.service.UserService
+      - com.spring.importclass.dao.UserDao
+
+    score:
+      - yuwen: 120
+      - shuxue: 130

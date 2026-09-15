@@ -1,0 +1,18 @@
+﻿spring:
+  application:
+    name: demo
+  profiles:
+#        active: dev
+    active: test
+  jdbc:
+    template:
+      query-timeout: 3s
+
+mybatis:
+  mapper-locations: classpath:mapping/*.xml
+  type-aliases-package: com.example.demo
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  configuration-properties:
+    dialect: mysql

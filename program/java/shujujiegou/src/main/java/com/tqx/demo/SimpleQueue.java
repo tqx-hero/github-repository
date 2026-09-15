@@ -1,6 +1,5 @@
 package com.tqx.demo;
 
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * @author Administrator

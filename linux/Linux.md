@@ -823,4 +823,57 @@
 
     
 
-49. 
+49. **数组的使用：**
+
+    ```bash
+    #定义数组：括号里面不要有逗号，直接用空格隔开
+    array=("abc" "bcd" "efg" "hij" "klm")
+    #往数组中追加元素
+    array+=("llll")
+    ${array[@]}	#迭代数组写法
+      7 for item in "${array[@]}" ;do
+      8         echo "$item"
+      9 done
+    
+    ${!array[@]}	#迭代数组，使用下标的写法。
+    ```
+
+    **demo:**
+
+    ```bash
+      1 #!/bin/bash
+      2 #数组的定义，使用
+      3 array=("abc" "cbd" "efg" "ghi")
+      4 array+=("jkl")
+      5
+      6 echo "下面是直接迭代获取数组元素"
+      7 for item in "${array[@]}" ;do
+      8         echo "$item"
+      9 done
+     10
+     11 echo "下面是用下标访问的遍历"
+     12 declare -i i=0
+     13 for i in "${!array[@]}" ; do
+     14         echo "第i个元素值 = ${array[$i]}"
+     15         i+=1
+     16 done
+     17 unset array
+     18 exit 0
+    ```
+
+    
+
+50. 查找命令：
+
+    ```bash
+    find [options] [-oa] expression	#-o 表示逻辑或，-a是逻辑与，用于连接两个指令
+    find . -type f -o -type d	#查询当前目录下所有的文件以及目录并列出
+    find . -iname "apple*"	#忽略大小写查找所有以apple为开头的文件
+    find . -empty	#查找空文件
+    find . -size +0 -type f #查找所有大小大于0的文件
+    find . -size 0 -type f > file	#查找所有文件大小为0的普通文件名称，输出到file文件中
+    ```
+
+    
+
+51. 

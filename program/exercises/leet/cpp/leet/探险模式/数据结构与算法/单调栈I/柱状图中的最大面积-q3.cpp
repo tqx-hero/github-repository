@@ -38,29 +38,32 @@ using namespace std;
 class Solution {
 public:
     int largestRectangleArea(vector<int>& heights) {
-        heights.push_back(0);
         int size = static_cast<int>(heights.size());
         stack<int> idx_stack;
         idx_stack.push(0);
         int i=1,max_area = 0;
         for(;i<size;++i){
-            while(!idx_stack.empty() && heights[idx_stack.top()] > heights[i]){
+            while(heights[idx_stack.top()] > heights[i]){
                 int top_idx = idx_stack.top();
                 idx_stack.pop();
-                int left_idx = idx_stack.empty() ? 0 : idx_stack.top()+1;
+                int left_idx = idx_stack.empty() ? 0 : idx_stack.top();
                 max_area = max(max_area,(i-left_idx) * heights[top_idx]);
             }
             idx_stack.push(i);
+        }
+        while(!idx_stack.empty()){
+            int top_idx = idx_stack.top();
+            idx_stack.pop();
+            int left_idx = idx_stack.empty() ? 0 : idx_stack.top();
+            max_area = max(max_area,heights[top_idx] * (top_idx - left_idx));
         }
         return max_area;
     }
 };
 
-// int main(){
-//     // vector<int> heights{2,1,5,6,2,3};
-//     // vector<int> heights{2,4};
-//     vector<int> heights{1};
-//     Solution sl;
-//     cout << sl.largestRectangleArea(heights) << endl;
-//     return 0;
-// }
+int main(){
+    vector<int> heights{2,1,5,6,2,3};
+    Solution sl;
+    cout << sl.largestRectangleArea(heights) << endl;
+    return 0;
+}

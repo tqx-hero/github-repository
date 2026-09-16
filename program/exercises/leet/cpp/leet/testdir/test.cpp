@@ -1,90 +1,71 @@
 /**
- * 4. 寻找两个正序数组的中位数
+ * 198. 打家劫舍
 已解答
-困难
+中等
 相关标签
 premium lock icon
 相关企业
-给定两个大小分别为 m 和 n 的正序（从小到大）数组 nums1 和 nums2。请你找出并返回这两个正序数组的 中位数 。
+你是一个专业的小偷，计划偷窃沿街的房屋。每间房内都藏有一定的现金，影响你偷窃的唯一制约因素就是相邻的房屋装有相互连通的防盗系统，如果两间相邻的房屋在同一晚上被小偷闯入，系统会自动报警。
 
-算法的时间复杂度应该为 O(log (m+n)) 。
+给定一个代表每个房屋存放金额的非负整数数组，计算你 不触动警报装置的情况下 ，一夜之内能够偷窃到的最高金额。
 
  
 
 示例 1：
 
-输入：nums1 = [1,3], nums2 = [2]
-输出：2.00000
-解释：合并数组 = [1,2,3] ，中位数 2
+输入：[1,2,3,1]
+输出：4
+解释：偷窃 1 号房屋 (金额 = 1) ，然后偷窃 3 号房屋 (金额 = 3)。
+     偷窃到的最高金额 = 1 + 3 = 4 。
 示例 2：
 
-输入：nums1 = [1,2], nums2 = [3,4]
-输出：2.50000
-解释：合并数组 = [1,2,3,4] ，中位数 (2 + 3) / 2 = 2.5
- 
-
+输入：[2,7,9,3,1]
+输出：12
+解释：偷窃 1 号房屋 (金额 = 2), 偷窃 3 号房屋 (金额 = 9)，接着偷窃 5 号房屋 (金额 = 1)。
+     偷窃到的最高金额 = 2 + 9 + 1 = 12 。
  
 
 提示：
 
-nums1.length == m
-nums2.length == n
-0 <= m <= 1000
-0 <= n <= 1000
-1 <= m + n <= 2000
--106 <= nums1[i], nums2[i] <= 106
+1 <= nums.length <= 100
+0 <= nums[i] <= 400
  */
 #include <vector>
 #include <iostream>
+#include <algorithm>
 using namespace std;
-//先考虑双指针解法
+//每个房子都有两个状态：被打劫、没有被打劫
+//用动态规划，使用一个二维数组dp[size][2]
+//size为原数组的大小
+//dp数组表示为每个房屋的两种状态下
+//得到的钱累计总数
 class Solution {
-    double get_middle(vector<int>& nums,int sz){
-        int idx= (sz-1)/2;
-        if(sz % 2)
-            return nums[idx];
-        return 
-            (nums[idx]+nums[idx+1]) /2.0;
-    }
 public:
-    double findMedianSortedArrays(vector<int>& nums1, vector<int>& nums2) {
-        int n1_sz = static_cast<int>(nums1.size()),n2_sz = static_cast<int>(nums2.size()),
-            size =n1_sz+n2_sz;
-        if(!n1_sz)
-            return get_middle(nums2,n2_sz);
-        if(!n2_sz)
-            return get_middle(nums1,n1_sz);
-        int cur_idx = (size -1) /2 +1;
-        int i=-1,n1_idx=0,n2_idx=0,left_val = 0,right_val = 0;
-        while(i<cur_idx && n1_idx < n1_sz && n2_idx <n2_sz){
-            left_val=right_val;
-            if(nums1[n1_idx] <=nums2[n2_idx])
-                right_val= nums1[n1_idx++];
-            else 
-                right_val= nums2[n2_idx++];
-            i++;
+    int rob(vector<int>& nums) {
+        int size = static_cast<int>(nums.size());
+        //记录每间房子的每个状态下的累计获得钱数
+        //0下标代表本房间不打劫，1下标代表打劫
+        vector<vector<int>> dp(size,vector<int>(2,0));
+        dp[0][0] = 0;
+        dp[0][1] = nums[0];
+        //从第二个开始遍历
+        int i;
+        //状态转移方程：
+        //f(x) = max{f(x-1)[1],f(x-1)[0]+nums[x]}
+        //f(0)[0] = 0;f(0)[1] =nums[0];
+        for(i=1;i<size;++i){
+            dp[i][0] = max(dp[i-1][1],dp[i-1][0]);
+            dp[i][1] = dp[i-1][0]+nums[i];
         }
-        //出现一个数组遍历完成的结果
-        while(i< cur_idx){
-            left_val = right_val;
-            if(n1_idx < n1_sz)
-               right_val= nums1[n1_idx++] ;
-            else
-                right_val=nums2[n2_idx++];
-            i++;
-        }
-        if(size % 2 == 0)
-            return (left_val + right_val) /2.0;
-        else 
-            return left_val;
+        return max(dp[size-1][0],dp[size-1][1]);
     }
 };
 
 // int main(){
-//     //nums1 = [1,3], nums2 = [2]
-//     // vector<int> nums1{1,2},nums2{3,4};
-//     vector<int> nums1{},nums2{3};
+//     // vector<int> nums{1,2,3,1};
+//     vector<int> nums{2,7,9,3,1};
+//     // vector<int> nums{2,1,1,2};
 //     Solution sl;
-//     cout << sl.findMedianSortedArrays(nums1,nums2) << endl;
+//     cout << sl.rob(nums) << endl;
 //     return 0;
 // }

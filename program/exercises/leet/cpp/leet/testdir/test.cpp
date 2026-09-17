@@ -1,92 +1,79 @@
 /**
- * 290. 单词规律
+ * 338. 比特位计数
 简单
 相关标签
 premium lock icon
 相关企业
-给定一种规律 pattern 和一个字符串 s ，判断 s 是否遵循相同的规律。
+提示
+给你一个整数 n ，对于 0 <= i <= n 中的每个 i ，计算其二进制表示中 1 的个数 ，返回一个长度为 n + 1 的数组 ans 作为答案。
 
-这里的 遵循 指完全匹配，例如， pattern 里的每个字母和字符串 s 中的每个非空单词之间存在着双向连接的对应规律。具体来说：
+不要使用内置函数来解决（例如，C++ 中的 __builtin_popcount）。
 
-pattern 中的每个字母都 恰好 映射到 s 中的一个唯一单词。
-s 中的每个唯一单词都 恰好 映射到 pattern 中的一个字母。
-没有两个字母映射到同一个单词，也没有两个单词映射到同一个字母。
  
 
-示例1:
+示例 1：
 
-输入: pattern = "abba", s = "dog cat cat dog"
-输出: true
-示例 2:
+输入：n = 2
+输出：[0,1,1]
+解释：
+0 --> 0
+1 --> 1
+2 --> 10
+示例 2：
 
-输入:pattern = "abba", s = "dog cat cat fish"
-输出: false
-示例 3:
-
-输入: pattern = "aaaa", s = "dog cat cat dog"
-输出: false
+输入：n = 5
+输出：[0,1,1,2,1,2]
+解释：
+0 --> 0
+1 --> 1
+2 --> 10
+3 --> 11
+4 --> 100
+5 --> 101
  
 
-提示:
+提示：
 
-1 <= pattern.length <= 300
-pattern 只包含小写英文字母
-1 <= s.length <= 3000
-s 只包含小写英文字母和 ' '
-s 不包含 任何前导或尾随对空格
-s 中每个单词都被 单个空格 分隔
+0 <= n <= 105
+ 
+
+进阶：
+
+很容易就能实现时间复杂度为 O(n log n) 的解决方案，你可以在线性时间复杂度 O(n) 内用一趟扫描解决此问题吗？
  */
-#include <string>
 #include <vector>
-#include <unordered_map>
 #include <iostream>
+#include <algorithm>
 using namespace std;
-
+//0-2^0：个数 0,1
+//[2^1 - 2^2) 个数 为 1, 2
+//[2^2 ~ 2^3) 个数: 1,2,2,3
+//[2^3~2^4) 个数：1,2,2,3,2,3,3,4
+//由此类推：
+//从2的整数幂到下一个2的整数幂之间(左闭右开),1的个数都是上一个区间的个数，然后在拼接这个区间每个个数+1
 class Solution {
-    void build_array(string& s,vector<string>& vct){
-        //按照空格拆分字符串
-        int size = static_cast<int>(s.size()),i;
-        string str;
-        for(i=0;i<size;++i){
-            if(s[i] == ' '){
-                vct.push_back(str);
-                str.clear();
-            }else
-                str.push_back(s[i]);
-        }
-        vct.push_back(str);
-    }
 public:
-    bool wordPattern(string pattern, string s) {
-        vector<string> vct;
-        build_array(s,vct);
-        int i,size;
-        if((size = pattern.size()) != vct.size())
-            return false;
-        unordered_map<char,string> c_map;
-        unordered_map<string,char> s_map;
-        unordered_map<char,string>::iterator c_it;
-        unordered_map<string,char>::iterator s_it;
-        for(i=0;i<size;++i){
-            c_it = c_map.find(pattern[i]);
-            s_it = s_map.find(vct[i]);
-            bool c_no = c_it == c_map.end(),s_no = s_it == s_map.end();
-            //如果都不存在，进行插入
-            if(c_no && s_no){
-                c_map[pattern[i]] = vct[i];
-                s_map[vct[i]] = pattern[i];
-            }else if(c_no || s_no || s_it->second != pattern[i])
-                return false;
+    vector<int> countBits(int n) {
+        vector<int> ret(n+1);
+        ret[0] = 0;
+        int i,sub_num = 1,next_num = sub_num << 1;
+        for(i=1;i<=n;i++){
+            if(i == next_num){
+                ret[i] =1;
+                sub_num =next_num;
+                next_num <<=1;
+            }else
+                ret[i] = ret[i-sub_num]+1;
         }
-        return true;
+        return ret;
     }
 };
 
 // int main(){
-//     // string pattern = "abba", s = "dog cat cat dog";
-//     // string pattern = "abba", s = "dog cat cat fish";
-//     string pattern = "aaaa", s = "dog cat cat dog";
+//     int n =5;
 //     Solution sl;
-//     cout << sl.wordPattern(pattern,s) << endl;
+//     const auto& vc = sl.countBits(n);
+//     for_each(vc.begin(),vc.end(),[](int x){cout << x << " ";});
+//     cout << endl;
 //     return 0;
 // }

@@ -42,7 +42,21 @@ using namespace std;
 class Solution {
 public:
     vector<vector<int>> kSmallestPairs(vector<int>& nums1, vector<int>& nums2, int k) {
-        
+          // priority_queue<int,vector<int>,greater<int>> n1_queue{nums1.begin(),nums1.ebd()},n2_queue{nums2.begin(),nums2.end()};
+          // vector<vector<int>> ret;
+          // ret.reserve(k);
+          // while(k--){
+          //      int n1 = n1_queue.top(),n2 = n2_queue.top();
+          //      ret.push_back(vector<int>{n1,n2});
+          //      if(n1 > n2)
+          //           n1_queue.pop();
+          //      else if(n1 < n2)
+          //           n2_queue.pop();
+          //      else{
+          //           //如果两者相同，先都出堆，在看第二个堆顶那个大
+
+          //      }
+          // }
     }
 };
 

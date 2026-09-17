@@ -1,62 +1,92 @@
 /**
- * Q1. 最后一块石头的重量
+ * 290. 单词规律
 简单
 相关标签
 premium lock icon
 相关企业
-提示
-有一堆石头，每块石头的重量都是正整数。
+给定一种规律 pattern 和一个字符串 s ，判断 s 是否遵循相同的规律。
 
-每一回合，从中选出两块 最重的 石头，然后将它们一起粉碎。假设石头的重量分别为 x 和 y，且 x <= y。那么粉碎的可能结果如下：
+这里的 遵循 指完全匹配，例如， pattern 里的每个字母和字符串 s 中的每个非空单词之间存在着双向连接的对应规律。具体来说：
 
-如果 x == y，那么两块石头都会被完全粉碎；
-如果 x != y，那么重量为 x 的石头将会完全粉碎，而重量为 y 的石头新重量为 y-x。
-最后，最多只会剩下一块石头。返回此石头的重量。如果没有石头剩下，就返回 0。
-
+pattern 中的每个字母都 恰好 映射到 s 中的一个唯一单词。
+s 中的每个唯一单词都 恰好 映射到 pattern 中的一个字母。
+没有两个字母映射到同一个单词，也没有两个单词映射到同一个字母。
  
 
-示例：
+示例1:
 
-输入：[2,7,4,1,8,1]
-输出：1
-解释：
-先选出 7 和 8，得到 1，所以数组转换为 [2,4,1,1,1]，
-再选出 2 和 4，得到 2，所以数组转换为 [2,1,1,1]，
-接着是 2 和 1，得到 1，所以数组转换为 [1,1,1]，
-最后选出 1 和 1，得到 0，最终数组转换为 [1]，这就是最后剩下那块石头的重量。
+输入: pattern = "abba", s = "dog cat cat dog"
+输出: true
+示例 2:
+
+输入:pattern = "abba", s = "dog cat cat fish"
+输出: false
+示例 3:
+
+输入: pattern = "aaaa", s = "dog cat cat dog"
+输出: false
  
 
-提示：
+提示:
 
-1 <= stones.length <= 30
-1 <= stones[i] <= 1000
+1 <= pattern.length <= 300
+pattern 只包含小写英文字母
+1 <= s.length <= 3000
+s 只包含小写英文字母和 ' '
+s 不包含 任何前导或尾随对空格
+s 中每个单词都被 单个空格 分隔
  */
+#include <string>
 #include <vector>
-#include <algorithm>
-#include <queue>
+#include <unordered_map>
 #include <iostream>
 using namespace std;
+
 class Solution {
-public:
-    int lastStoneWeight(vector<int>& stones) {
-        make_heap(stones.begin(),stones.end());
-        while(stones.size() > 1){
-            int first = stones.front();
-            pop_heap(stones.begin(),stones.end());
-            stones.pop_back();
-            int second = stones.front();
-            pop_heap(stones.begin(),stones.end());
-            stones.pop_back();
-            stones.push_back(abs(first-second));
-            push_heap(stones.begin(),stones.end());
+    void build_array(string& s,vector<string>& vct){
+        //按照空格拆分字符串
+        int size = static_cast<int>(s.size()),i;
+        string str;
+        for(i=0;i<size;++i){
+            if(s[i] == ' '){
+                vct.push_back(str);
+                str.clear();
+            }else
+                str.push_back(s[i]);
         }
-        return stones.front();
+        vct.push_back(str);
+    }
+public:
+    bool wordPattern(string pattern, string s) {
+        vector<string> vct;
+        build_array(s,vct);
+        int i,size;
+        if((size = pattern.size()) != vct.size())
+            return false;
+        unordered_map<char,string> c_map;
+        unordered_map<string,char> s_map;
+        unordered_map<char,string>::iterator c_it;
+        unordered_map<string,char>::iterator s_it;
+        for(i=0;i<size;++i){
+            c_it = c_map.find(pattern[i]);
+            s_it = s_map.find(vct[i]);
+            bool c_no = c_it == c_map.end(),s_no = s_it == s_map.end();
+            //如果都不存在，进行插入
+            if(c_no && s_no){
+                c_map[pattern[i]] = vct[i];
+                s_map[vct[i]] = pattern[i];
+            }else if(c_no || s_no || s_it->second != pattern[i])
+                return false;
+        }
+        return true;
     }
 };
 
 // int main(){
-//     vector<int> stones{2,7,4,1,8,1};
+//     // string pattern = "abba", s = "dog cat cat dog";
+//     // string pattern = "abba", s = "dog cat cat fish";
+//     string pattern = "aaaa", s = "dog cat cat dog";
 //     Solution sl;
-//     cout << sl.lastStoneWeight(stones) << endl;
+//     cout << sl.wordPattern(pattern,s) << endl;
 //     return 0;
 // }

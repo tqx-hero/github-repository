@@ -127,7 +127,8 @@
 
    ```bash
    $#	#获取参数的个数
-   $*	#获取参数列表(省去了第一个参数，也就是执行脚本的命令)
+   $*	#获取参数列表(省去了第一个参数，也就是执行脚本的命令)，受$IFS的影响，如果IFS值发生变化，参数之间的空格也会变化，推荐使用$@
+   $@	#获取参数列表,添加双引号后不受环境变量$IFS的影响，始终会给参数之间添加空格
    $0,$1...	#获取对应下标的参数，从0开始
    $?	#获取上一句指令执行是否正常，正常输出0
    $$	#获取当前shell的进程号
@@ -324,6 +325,24 @@
     tqx@linux-ubuntu:~/linux-learn/if$ [ ! -e /home ] && echo "11"	#测试/home存不存在，结果取反之后为假
     tqx@linux-ubuntu:~/linux-learn/if$ [ ! -f /home ] && echo "11"	#测试/home是不是普通文件，结果取反后为真
     11
+    
+    # && || 连起来使用，利用短路求值的特性来控制语句的执行：
+    tqx@linux-ubuntu:~/linux-learn/shell/if$ ls
+    and_or.sh  case.sh  if-expression.sh  if.sh  test-file
+    #test-file为目录，所以下面语句的前两句输出为真，||遇到真短路，最后echo语句不会执行
+    tqx@linux-ubuntu:~/linux-learn/shell/if$ [ -f case.sh ] && [ -d test-file ] || echo "nono"
+    #前两句为假，会执行到最后
+    tqx@linux-ubuntu:~/linux-learn/shell/if$ [ -f case.sh ] && [ -f test-file ] || echo "nono"
+    nono
+    
+    # && 与 ||结合可以达到三目运算符的效果：
+    # [ expression ] && command(为真时执行) || command(为假时执行)
+    #[ -f case.sh ] 测试为真，输出第一个echo，|| 左边的语句为真，不会再执行第二个echo
+    tqx@linux-ubuntu:~/linux-learn/shell/if$ [ -f case.sh ] && echo "is nornal file" || echo "is dir"
+    is nornal file
+    #[ -d case.sh ]测试为假，&&短路求值，第一个echo不会执行，||左边结果为false，会继续执行第二个echo
+    tqx@linux-ubuntu:~/linux-learn/shell/if$ [ -d case.sh ] && echo "is nornal file" || echo "is dir"
+    is dir
     ```
 
     
@@ -405,6 +424,25 @@
        14 exit 0
       ```
 
+      如果出现的字母较固定且要匹配的情况比较多，可通过[]进行多种样式匹配：
+      
+      ```bash
+      #!/bin/bash
+      
+      #case语句使用
+      echo "现在是早上吗？请输入yes/no"
+      read config
+      case "$config" in
+      
+      [yY] | [yY][eE][sS] )   echo "您输入的是yes";;	#[yY][eE][sS]包含了大小写字母的组合形式
+      [nN] | [nN][oO] )       echo "您输入的是no";;
+      * )     echo "输入不合法";;
+      
+      esac
+      
+      exit 0
+      ```
+      
       
 
 14. 循环语句：
@@ -560,7 +598,7 @@
 
     ```bash
       1 #!/bin/bash
-      2	#两数相加
+      2#两数相加
       3 function add(){
       4         if [ $# -ne 2 ];then
       5                 echo "参数个数不正确"
@@ -569,23 +607,21 @@
       8                 echo "请输入不超过1000的正整数"
       9                 return 1;
      10         fi
-     11         echo "add() n1 = $1"
-     12         echo "add() n2 = $2"
-     13         local sum=$(($1+$2))
-     14         echo "add() sum = $sum"
-     15         return 0;
-     16 }
-     17
-     18 declare -i n1 n2
-     19 echo "请输入2个要相加的数字"
-     20 read n1 n2
-     21 ret=$(add $n1 $n2)
-     22 echo "$n1+$n2 = $ret"
+     11         local sum=$(( $1 + $2 ))	#使用$(( ... ))表达式，可以执行算术运算，并且可以将结果赋值给其他变量
+     12         echo "$sum"
+     13         return 0;
+     14 }
+     15
+     16 declare -i n1 n2
+     17 echo "请输入2个要相加的数字"
+     18 read n1 n2
+     19 ret=$(add $n1 $n2)	# $() 用于捕获函数、可执行脚本的输出结果，赋值给变量ret
+     20 echo "$n1+$n2 = $ret"
     ```
-
+    
     ```bash
-      1 #!/bin/bash
-      2	# 从0开始累加到n1
+  1 #!/bin/bash
+      2
       3 function sum_all(){
       4         if [ $# -ne 1 ]; then
       5                 echo "请输入参数"
@@ -598,19 +634,97 @@
      12         for ((i=0;i <= $1;i+=1));do
      13                 sum+=i;
      14         done
-     15         local res=$(($sum))
-     16         echo $res
-     17         return 0
-     18 }
-     19
-     20 declare -i n1
-     21 echo "请输入要累加的数"
-     22 read n1
-     23 sum_all $n1
-     24 ret=$(sum_all $n1)
-     25 echo "结果= $ret"
+     15         echo "$sum"
+     16         return 0
+     17 }
+     18
+     19 declare -i n1
+     20 echo "请输入要累加的数"
+     21 read n1
+     22 sum_all $n1
+     23 ret=$(sum_all $n1)
+     24 echo "结果= $ret"
+    ```
+    
+    
+    
+16. 算术运算：
+
+    ```bash
+    $(( exp ))	#可以在exp中执行算术运算，并且结果可输出、可赋值
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ echo "$(( 1+2 ))"
+    3
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ ret=$(( 3+10 )) && echo "$ret"
+    13
     ```
 
     
 
-16. 
+17. 条件判断：
+
+    ```bash
+    (( exp ))	#仅仅判断表达式的算术运算的真假，仅返回$?
+    # (( 10 > 20 ))结果为假，$?不为0，会执行else分支，输出第二个echo
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ if (( 10 > 20 ));then echo "10 > 20 ";else echo "10 < 20";fi
+    10 < 20
+    ```
+
+    
+
+18. test测试：
+
+    ```bash
+    [ exp ]		#等价于 test exp，是test的更简洁可读的写法
+    #条件测试 10 不等于20，为真返回第一个echo
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ [ 10 -ne 20 ] && echo "10 != 20" || echo "10 ==20"
+    10 != 20
+    ```
+
+    
+
+19. 空命令：
+
+    ```bash
+    :	#空命令，在条件判断里面可以当做true的简化写法，因为是内置命令，处理起来比true要快，但可读性差，while : 等价于while true
+    #: = true,什么也不输出
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ [ 10 -ne 20 ] && : || echo "10 ==20"
+    tqx@linux-ubuntu:~/linux-learn/shell/function$
+    ```
+
+    
+
+20. eval:
+
+    ```bash
+    #重新对后面的字符串进行解析，执行,用法类似于C语言的宏
+    foo=10
+    x=foo
+    y=\$$x
+    echo $y		#输出$y
+    eval y=\$$x
+    echo $y		#输出10
+    ```
+
+    ```bash
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ foo=10
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ x=foo
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ y="$"$x
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ echo $y
+    $foo
+    
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ eval echo \$$x
+    10
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ eval y=\$$x
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ echo $y
+    10
+    #经典写法：取集合最后一个元素,等价于内置函数：${!#}
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ set -- 10 20 30 40
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ eval echo \$$#
+    40
+    tqx@linux-ubuntu:~/linux-learn/shell/function$ echo ${!#}
+    40
+    ```
+
+    
+
+21. 

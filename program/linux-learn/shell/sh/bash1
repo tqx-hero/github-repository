@@ -1,0 +1,16 @@
+#!/bin/bash
+#1、在/home/tqx目录下创建名称为cmd_test的目录
+mkdir -p /home/tqx/cmd_test
+cd /home/tqx/cmd_test
+echo "当前目录路径= $(pwd)"
+cp /lib/*.so* ./
+tar -zcvf so.tar.gz *.so
+mkdir -p c_test
+tar -zxvf so.tar.gz -C c_test/
+#rm -rf so.tar.gz
+chmod 700 so.tar.gz
+ls /dev/ > dev.txt
+grep -n "console" dev.txt
+echo "success"
+echo -e "\a"
+

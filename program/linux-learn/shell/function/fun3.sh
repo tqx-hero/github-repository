@@ -12,8 +12,7 @@ function sum_all(){
 	for ((i=0;i <= $1;i+=1));do
 		sum+=i;	
 	done
-	local res=$(($sum))
-	echo $res
+	echo "$sum"
 	return 0
 }
 
@@ -23,3 +22,4 @@ read n1
 sum_all $n1
 ret=$(sum_all $n1)
 echo "结果= $ret"
+

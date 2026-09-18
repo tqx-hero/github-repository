@@ -8,10 +8,8 @@ function add(){
 		echo "请输入不超过1000的正整数"
 		return 1;
 	fi
-	echo "add() n1 = $1"
-	echo "add() n2 = $2"
-	local sum=$(($1+$2))
-	echo "add() sum = $sum"
+	local sum=$(( $1 + $2 ))
+	echo "$sum"
 	return 0;
 }
 

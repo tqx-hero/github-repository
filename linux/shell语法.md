@@ -524,4 +524,93 @@
 
       
 
-15. 
+15. 函数的使用：
+
+    ```bash
+    function 函数名 (){	#function 关键字可省略
+    	#函数体，遵循shell语法,参数通过$1/$2/$n等获取
+    }
+    #在声明函数之后可以在后面调用该函数
+    ```
+
+    demo:
+
+    ```bash
+      1 #!/bin/bash
+      2 #函数的简单用法
+      3
+      4 function is_dir(){
+      5         if [ $# -lt 1 ]; then
+      6                 echo "参数个数不足"
+      7                 return 1;
+      8         elif [ ! -d $1 ];then
+      9                 echo "不是一个目录"
+     10                 return 2;
+     11         else
+     12                 return 0;
+     13         fi
+     14 }
+     15
+     16 echo "请输入你要查询的目录路径:"
+     17 read dir
+     18
+     19 is_dir $dir
+     20 echo "$dir 查询结果= $?"
+    ```
+
+    ```bash
+      1 #!/bin/bash
+      2	#两数相加
+      3 function add(){
+      4         if [ $# -ne 2 ];then
+      5                 echo "参数个数不正确"
+      6                 return 1;
+      7         elif [ $1  -gt 1000 ] || [ $2 -gt 1000 ] ;then
+      8                 echo "请输入不超过1000的正整数"
+      9                 return 1;
+     10         fi
+     11         echo "add() n1 = $1"
+     12         echo "add() n2 = $2"
+     13         local sum=$(($1+$2))
+     14         echo "add() sum = $sum"
+     15         return 0;
+     16 }
+     17
+     18 declare -i n1 n2
+     19 echo "请输入2个要相加的数字"
+     20 read n1 n2
+     21 ret=$(add $n1 $n2)
+     22 echo "$n1+$n2 = $ret"
+    ```
+
+    ```bash
+      1 #!/bin/bash
+      2	# 从0开始累加到n1
+      3 function sum_all(){
+      4         if [ $# -ne 1 ]; then
+      5                 echo "请输入参数"
+      6                 return 1;
+      7         elif [ $1 -lt 0 ] || [ $1 -gt 100 ];then
+      8                 echo "请输入0~100内的数字"
+      9                 return 1;
+     10         fi
+     11         declare -i sum=0
+     12         for ((i=0;i <= $1;i+=1));do
+     13                 sum+=i;
+     14         done
+     15         local res=$(($sum))
+     16         echo $res
+     17         return 0
+     18 }
+     19
+     20 declare -i n1
+     21 echo "请输入要累加的数"
+     22 read n1
+     23 sum_all $n1
+     24 ret=$(sum_all $n1)
+     25 echo "结果= $ret"
+    ```
+
+    
+
+16. 

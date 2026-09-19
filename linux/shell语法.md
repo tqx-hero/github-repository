@@ -620,7 +620,7 @@
     ```
     
     ```bash
-  1 #!/bin/bash
+    1 #!/bin/bash
       2
       3 function sum_all(){
       4         if [ $# -ne 1 ]; then

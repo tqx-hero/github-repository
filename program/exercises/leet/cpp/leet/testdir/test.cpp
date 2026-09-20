@@ -1,53 +1,82 @@
 /**
- * class Solution
-{
-public:
-    bool checkOverlap(int radius, int xCenter, int yCenter, int x1, int y1, int x2, int y2)
-    {
-        //定义max_dst为相切时的距离，min_dst为实际圆心到最近矩形顶点的距离
-        double max_dst, min_dst;
-        //x_dst为圆心到矩形最近顶点的x轴距离，y_dst为y轴距离
-        int x_dst, y_dst;
-        //圆心在矩形左右两边，横坐标超过矩形左右边界
-        if (xCenter <= x1 || xCenter >= x2)
-        {
-            max_dst = sqrt(pow(radius, 2) + pow((y2 - y1) / 2.0, 2));
-            // 圆心在矩形左半边
-            y_dst = min(abs(y1 - yCenter), abs(y2 - yCenter));
-            x_dst = min(abs(x1 - xCenter), abs(x2 - xCenter));
-        }
-        else
-        //圆心在矩形上下部分，在x1-x2之间
-        {
-            // 先判断圆心是否在y1-y2之间,如果存在，为包含关系
-            if (yCenter >= y1 && yCenter <= y2)
-                return true;
-            max_dst = sqrt(pow(radius, 2) + pow((x2 - x1) / 2.0, 2));
-            x_dst = min(abs(x1 - xCenter), abs(x2 - xCenter));
-            y_dst = min(abs(y1 - yCenter), abs(y2 - yCenter));
-        }
-        min_dst = sqrt(pow(x_dst, 2) + pow(y_dst, 2));
-        //最近距离小于等于相切距离，图形就有重叠
-        return min_dst <= max_dst;
-    }
-};
+ * 3498. 字符串的反转度
+简单
+相关标签
+premium lock icon
+相关企业
+提示
+给你一个字符串 s，计算其 反转度。
+
+反转度的计算方法如下：
+
+对于每个字符，将其在 反转 字母表中的位置（'a' = 26, 'b' = 25, ..., 'z' = 1）与其在字符串中的位置（下标从1 开始）相乘。
+将这些乘积加起来，得到字符串中所有字符的和。
+返回 反转度。
+
+
+
+示例 1：
+
+输入： s = "abc"
+
+输出： 148
+
+解释：
+
+字母	反转字母表中的位置	字符串中的位置	乘积
+'a'	26	1	26
+'b'	25	2	50
+'c'	24	3	72
+反转度是 26 + 50 + 72 = 148 。
+
+示例 2：
+
+输入： s = "zaza"
+
+输出： 160
+
+解释：
+
+字母	反转字母表中的位置	字符串中的位置	乘积
+'z'	1	1	1
+'a'	26	2	52
+'z'	1	3	3
+'a'	26	4	104
+反转度是 1 + 52 + 3 + 104 = 160 。
+
+
+
+提示：
+
+1 <= s.length <= 1000
+s 仅包含小写字母。
  */
+#include <string>
+#include <array>
 #include <iostream>
 using namespace std;
 
 class Solution
 {
 public:
-    bool isPowerOfFour(int n)
+    int reverseDegree(string s)
     {
-        return n > 0 && (n & (n - 1)) == 0 && (n & 0xAAAAAAAA) == 0;
+        array<int, 26> arr;
+        arr[0] = 26;
+        int i;
+        for (i = 1; i < 26; ++i)
+            arr[i] = arr[i - 1] - 1;
+        int ret = 0,size =static_cast<int>(s.size());
+        for (i = 0; i < size; ++i)
+            ret += arr[s[i] - 'a'] * (i + 1);
+        return ret;
     }
 };
 
 // int main()
 // {
-//     int n = 12;
+//     string s = "abc";
 //     Solution sl;
-//     cout << sl.isPowerOfFour(n) << endl;
+//     cout << sl.reverseDegree(s) << endl;
 //     return 0;
 // }

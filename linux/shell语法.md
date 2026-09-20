@@ -648,14 +648,22 @@
     
     
     
-16. 算术运算：
+16. 表达式求值：
 
     ```bash
-    $(( exp ))	#可以在exp中执行算术运算，并且结果可输出、可赋值
+    $(( exp ))	#可以在exp中执行算术逻辑运算，并且结果可输出、可赋值,等价于expr exp
     tqx@linux-ubuntu:~/linux-learn/shell/function$ echo "$(( 1+2 ))"
     3
     tqx@linux-ubuntu:~/linux-learn/shell/function$ ret=$(( 3+10 )) && echo "$ret"
     13
+    tqx@linux-ubuntu:~/linux-learn/shell$ x=$(( 10 | 20 ))
+    tqx@linux-ubuntu:~/linux-learn/shell$ echo $x
+    30
+    #使用expr命令进行计算
+    tqx@linux-ubuntu:~/linux-learn/shell$ declare -i x=100
+    tqx@linux-ubuntu:~/linux-learn/shell$ x=`expr $x + 1`
+    tqx@linux-ubuntu:~/linux-learn/shell$ echo $x
+    101
     ```
 
     
@@ -727,4 +735,126 @@
 
     
 
-21. 
+21. printf:
+
+    ```bash
+    #用法与c相同，同样是： 输出格式 输出列表...
+    tqx@linux-ubuntu:~/linux-learn/shell$ printf "%s%d\n" "你好" 10
+    你好10
+    ```
+
+    
+
+22. set:
+
+    ```bash
+    #设置参数变量,后面可通过$n获取参数列表
+    set param1 param2 ....
+    #设置了2个参数，第二条指令是获取第二个参数date
+    tqx@linux-ubuntu:~/linux-learn/shell$ set number date
+    tqx@linux-ubuntu:~/linux-learn/shell$ echo $2
+    date
+    ```
+
+    
+
+23. shift:
+
+    ```bash
+    #将参数列表全部左移一位，这样$1被丢弃，$2变$1，$3变$2...($0不会改变，因为它是脚本执行命令)。移动后$@、$#、$*也会相应改变
+    shift [n] 	#n为左移的次数，不写就是1次，
+    #设置了2个参数
+    tqx@linux-ubuntu:~/linux-learn/shell$ set number date
+    tqx@linux-ubuntu:~/linux-learn/shell$ echo $2
+    date
+    
+    tqx@linux-ubuntu:~/linux-learn/shell$ shift		#左移一位
+    tqx@linux-ubuntu:~/linux-learn/shell$ echo $2	#最左边的$1被丢弃，$2变$1,输出第二个参数为空
+    
+    tqx@linux-ubuntu:~/linux-learn/shell$ echo $1 	# $1是之前的$2
+    date
+    #进行左移2次
+    tqx@linux-ubuntu:~/linux-learn/shell$ set n1 n2 n3 n4
+    tqx@linux-ubuntu:~/linux-learn/shell$ shift 2
+    tqx@linux-ubuntu:~/linux-learn/shell$ echo $1
+    n3
+    tqx@linux-ubuntu:~/linux-learn/shell$ echo $#	#最初的4个参数移动后变成2个
+    2
+    
+    tqx@linux-ubuntu:~/linux-learn/shell$ echo "$@"
+    n3 n4
+    ```
+
+    
+
+24. 信号处理trap：
+
+    ```bash
+    trap [command] signal	#针对某一个signal触发时执行的handler
+    -command: 要执行的指令。
+    		  为空时表示忽略该信号的处理，此时执行信号的默认处理机制。
+    		  设置为： - 时，表示重置信号为其默认处理机制
+    -signal:具体的信号，可通过trap -l 命令查看。重要的几种如下(括号内为信号编号)
+    	HUP(1):	挂起，因中断掉线或用户退出引起。
+    	INT(2):	中断。按下CTRL+C
+    	QUIT(3): 退出。按下ctrl+\
+    	ABRT(6): 中止。因某些严重的执行错误引起。
+    	ALAM(14): 报警。用来处理超时
+    	TERM(15): 终止。系统关机时触发。
+    ```
+
+    ###### DEMO:
+
+    ```BASH
+      1 #!/bin/bash
+      2 # trap的使用
+      3
+      4 file_name=`date +%F`-$$.log
+      5 declare config=1
+      6 #设置中断信号处理
+      7 #trap "rm -rf $file_name" INT
+      8 trap config=0 INT	#设置INT信号的中断处理，具体操作是将config设置为0
+      9 echo "正在创建测试文件 : $file_name"
+     10 touch $file_name
+     11 echo "文件创建成功"
+     12
+     13 while [ -f $file_name ] && [ $config -gt 0 ] ;do	#当日志文件存在且config值大于0时，一直循环
+     14         echo "文件存在，循环中...\n"
+     15         ls >> $file_name
+     16         sleep 1
+     17 done
+     18
+     19 echo "第一个中断处理程序执行完毕"
+     20
+     21 #command 为空表示忽略某个信号，不设置handler，即进行默认的处理
+     22 trap INT
+     23 while : ;do		#死循环处理
+     24         echo "正在进行第二个循环..."
+     25         sleep 1
+     26 done
+     27	# 第二个中断处理INT信号为忽略，不进行特殊处理，此时会执行INT的默认处理，ctrl+c为立即退出当前进程，后面这条echo不会执行
+     28 echo "程序退出"
+    ```
+
+    执行结果：
+
+    ```bash
+    tqx@linux-ubuntu:~/linux-learn/shell$ ./trap.sh
+    正在创建测试文件 : 2026-09-20-114300.log
+    文件创建成功
+    文件存在，循环中...\n
+    文件存在，循环中...\n
+    文件存在，循环中...\n
+    文件存在，循环中...\n
+    ^C第一个中断处理程序执行完毕
+    正在进行第二个循环...
+    正在进行第二个循环...
+    正在进行第二个循环...
+    正在进行第二个循环...
+    正在进行第二个循环...
+    ^C
+    ```
+
+    
+
+25. 

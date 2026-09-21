@@ -667,4 +667,15 @@
 
    
 
-9. 
+9. 获取系统的进程号：
+
+   ```c
+   pid_t getpid();		#获取当前进程的进程号
+   pid_t getppid();	#获取父进程号
+       
+   typedef int pid_t;
+   ```
+
+   
+
+10. 

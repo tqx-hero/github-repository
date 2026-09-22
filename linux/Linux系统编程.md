@@ -745,4 +745,110 @@
 
     
 
-11. 
+11. 子进程的回收：
+
+    ```c
+    //fork()生成的子进程在退出后，系统会自动回收它所占用的除PCB之外的所有资源，但是PCB必须要父进程去回收，否则就要等到父进程退出时才会统一回收。
+    //如下示例显示了内存泄漏的问题：
+    #include <unistd.h>
+    #include <stdio.h>
+    #include <sys/types.h>
+    #include <stdlib.h>
+    #include <sys/wait.h>
+    
+    int main(){
+            pid_t pid;
+            if((pid = fork()) <0)
+                    perror("");
+            else if(pid == 0){
+                    printf("子进程执行...\n");	//子进程执行后退出
+                    exit(0);
+            }else{
+                    while(1){
+                            printf("父进程正在执行...\n");	//父进程持续循环，不会退出，子进程的PCB不会被回收。
+                            sleep(1);
+                    }
+            }
+            return 0;
+    }
+    ```
+
+    ```bash
+    tqx@LAPTOP-G3KT1I3B:/mnt/c/Users/田庆新$ ps -aux | grep wait
+    tqx        795  0.0  0.0   2676  1032 pts/0    S+   15:04   0:00 ./wait
+    tqx        796  0.0  0.0      0     0 pts/0    Z+   15:04   0:00 [wait] <defunct>#Z为僵尸进程，PCB未被回收
+    tqx        798  0.0  0.0   4084  1988 pts/1    S+   15:04   0:00 grep --color=auto wait
+    ```
+
+    ###### 使用wait进行回收：
+
+    ```c
+    #include <sys/wait.h>
+    //阻塞等待子进程结束，并回收它的PCB
+    /**
+    	wstatus: 子进程的退出状态。该整形包括2部分：
+    		0~7位表示子进程是否正常退出成功
+    		8~15位表示子进程的退出码。该退出码是exit或者main函数的return的返回值
+    	return: 
+    		-1：回收失败
+    		>0: 子进程ID
+    */
+    pid_t wait(int *_Nullable wstatus);
+    /**
+    	pid: 
+    		要回收的子进程ID，填写-1表示任意子进程。
+    	wstatus: 
+    		子进程回收状态，与wait函数参数相同。
+    	options:
+    		0: 阻塞等待，直到出现一个子进程退出
+    		WNOHANG: 立即返回，即使没有子进程退出也不会阻塞。
+    			当仍有子进程执行但是没有子进程退出时，返回值pid=0
+    			当没有子进程时，返回值pid=-1
+    		
+    */
+    pid_t waitpid(pid_t pid, int *_Nullable wstatus, int options);
+    //status通过宏函数获取来获取子进程的退出状态。
+    //1、正常退出
+    WIFEXITED(wstatus) //子进程正常退出返回true
+    WEXITSTATUS(wstatus) //获取子进程的返回值(exit、return的返回值)
+    //2、通过信号：
+    WIFSIGNALED(wstatus) //子进程通过信号终止的返回true
+    WTERMSIG(wstatus) //返回终止子进程的信号的号码,当且仅当WIFSIGNALED返回值为true时使用
+    ```
+
+    DEMO:
+
+    ```c
+    #include <unistd.h>
+    #include <stdio.h>
+    #include <sys/types.h>
+    #include <stdlib.h>
+    #include <sys/wait.h>
+    
+    int main(){
+            pid_t pid;
+            if((pid = fork()) <0)
+                    perror("");
+            else if(pid == 0){
+                    printf("子进程: %d 执行...\n",getpid());
+                    sleep(2);
+                    exit(2);
+            }else{
+                    int status;
+                    pid_t cid;
+                    while(1){
+                            printf("父进程正在执行...\n");
+                            if((cid = wait(&status)) >0){
+                                    if(WIFEXITED(status))
+                                            printf("子进程: %d 已被回收,status = %d\n",cid,WEXITSTATUS(status));
+                            }
+                            sleep(1);
+                    }
+            }
+            return 0;
+    }
+    ```
+
+    
+
+12. 

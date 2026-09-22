@@ -868,6 +868,11 @@
     -newer otherfile: 比otherfile更新的文件。
     -type [t]: 文件类型为t，类型包括字符设备c、块设备b、文件夹d、普通文件f等
     -user username：文件拥有者为username
+    -exec command : 执行后面的指令。该命令是一个嵌入式指令，必须使用\;结束，用来表示该条指令的结束。
+    				魔术字符串：{}为-exec或者-ok的一个特殊类型参数，执行时用当前文件的完整路径取代。
+    -ok command: 与-exec类似，但在执行指令前会针对每个要处理的文件，提示用户进行确认，同样必须使用\;结束。
+    -print：打印文件名。
+    -ls：对当前文件使用ls-dils
     
     -o： or
     -a： and
@@ -875,6 +880,16 @@
     #可使用()进行优先级的重排列,由于()在shell中有子进程执行的用法，在这里进行对其进行\转移
     #如下指令是找出名称是下划线开头或者比fork1更新的，并且类型是普通文件的所有文件。
     find . \( -name "_*" -o -newer "fork1" \) -type f -print
+    #下面这条语句实现查找名称以wait开头的普通文件，并且将他们详细信息列出来：
+    #其中 {} 表示当前文件的完整路径。
+    find . -name "wait*" -type f -exec ls -l {} \;
+    
+    tqx@LAPTOP-G3KT1I3B$ find . -name "wait*" -type f -exec ls -l {} \;
+    -rwxrwxrwx 1 tqx tqx 16376 Sep 22 16:27 ./waitpid
+    -rwxrwxrwx 1 tqx tqx 588 Sep 22 16:27 ./waitpid.c
+    -rwxrwxrwx 1 tqx tqx 523 Sep 22 15:41 ./wait_nornal.c
+    -rwxrwxrwx 1 tqx tqx 16272 Sep 22 15:49 ./wait_signal
+    -rwxrwxrwx 1 tqx tqx 597 Sep 22 15:49 ./wait_signal.c
     ```
 
     

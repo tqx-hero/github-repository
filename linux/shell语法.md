@@ -857,4 +857,26 @@
 
     
 
-25. 
+25. find指令查询：
+
+    ```bash
+    find [path][options][tests][actions]
+    -path:	路径，绝对路径或者相对路径
+    -atime N : 文件在N天之前被最后访问过
+    -mtime N : 文件在N天之前被最后修改过
+    -name pattern: 匹配名称为pattern的文件，pattern可以用正则表达式匹配，最好用双引号括起来
+    -newer otherfile: 比otherfile更新的文件。
+    -type [t]: 文件类型为t，类型包括字符设备c、块设备b、文件夹d、普通文件f等
+    -user username：文件拥有者为username
+    
+    -o： or
+    -a： and
+    -not： !
+    #可使用()进行优先级的重排列,由于()在shell中有子进程执行的用法，在这里进行对其进行\转移
+    #如下指令是找出名称是下划线开头或者比fork1更新的，并且类型是普通文件的所有文件。
+    find . \( -name "_*" -o -newer "fork1" \) -type f -print
+    ```
+
+    
+
+26. 

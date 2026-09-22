@@ -667,15 +667,82 @@
 
    
 
-9. 获取系统的进程号：
+9. #### 获取系统的进程号：
 
    ```c
-   pid_t getpid();		#获取当前进程的进程号
-   pid_t getppid();	#获取父进程号
-       
+   pid_t getpid();		//获取当前进程的进程号
+   pid_t getppid();	//获取父进程号
+   pid_t getpgid(pid_t pid); //获取指定进程的组id,参数为0，表示获取当前进程组的组号
    typedef int pid_t;
+   ```
+
+   ###### DEMO:
+
+   ```c
+   #include <stdio.h>
+   #include <unistd.h>
+   
+   int main(){
+           pid_t cur_pid = getpid();
+           printf("当前的组id = %d\n",getpgid(cur_pid));	//这两组获取组id的方式等价，都是获取当前进程组的组号
+           printf("当前的组id2 = %d\n",getpgid(0));
+           return 0;
+   
+   }
    ```
 
    
 
-10. 
+10. #### 创建进程fork(man 2 fork...):
+
+    ```c
+    #include <unistd.h>
+    /**
+    return: 
+    	-1：创建失败，失败码在errno提取。
+    	0: 子进程的返回值。
+    	>0:父进程的返回值，返回的是子进程的ID。
+    */
+    pid_t fork(void);
+    //fork时会对父进程的PCB、栈、堆、代码段等所有数据都会进行拷贝。注意，在Linux下，如果缓冲区内有数据没有取出，通过fork()创建出的子进程会复制缓冲区，这种情况缓冲区内数据也会被拷贝。
+    ```
+
+    ###### DEMO:
+
+    ```c
+    #include <unistd.h>
+    #include <stdio.h>
+    #include <stdlib.h>
+    
+    int main(int argc,char** argv,char** env){
+            //char buf[] = "这是系统";
+            if(argc !=3){
+                    fprintf(stderr,"请输入父进程、子进程输入\n");
+                    return -1;
+            }
+            printf("父进程的输入：%s\n",argv[1]);
+            printf("当前进程ID：%d\n",getpid());
+            pid_t pid;
+            if((pid = fork()) < 0 ){
+                    perror("");
+            }
+            if(!pid){
+                    printf("子进程输入:%s\n",argv[2]);
+                    printf("子进程中父进程的输入:%s\n",argv[1]);
+                    printf("当前进程ID2 = %d\n",getpid());
+                    printf("父进程ID= %d\n",getppid());
+                	//执行exit后，子进程退出，后面的语句就不会执行
+                    exit(0);
+            }else{
+                    printf("父进程fork(),子进程ID = %d\n",pid);
+            }
+            //当fork()完成后，会生成子进程共同执行该代码，一共2个进程执行，所以这条输出会生成2条。
+            //不让子进程执行该代码，解决办法就是在子进程执行的代码最后添加退出语句exit
+            printf("最后输出：pid = %d\n",getpid());
+            return 0;
+    }
+    ```
+
+    
+
+11. 

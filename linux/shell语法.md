@@ -882,7 +882,10 @@
     find . \( -name "_*" -o -newer "fork1" \) -type f -print
     #下面这条语句实现查找名称以wait开头的普通文件，并且将他们详细信息列出来：
     #其中 {} 表示当前文件的完整路径。
+    # {} \; 这种写法会逐个文件fork()一个进程执行，适合单个文件处理
     find . -name "wait*" -type f -exec ls -l {} \;
+    #下方这种写法会先遍历，遍历结束后在fork()一个子进程批量处理，进程切换开销小，推荐使用{} +
+    find . -name "wait*" -type f -exec ls -l {} +
     
     tqx@LAPTOP-G3KT1I3B$ find . -name "wait*" -type f -exec ls -l {} \;
     -rwxrwxrwx 1 tqx tqx 16376 Sep 22 16:27 ./waitpid
@@ -894,4 +897,199 @@
 
     
 
-26. 
+26. 通用正则表达式解析器(general regular expression parser ---grep):
+
+    ```bash
+    grep [options] pattern [files] #按照条件搜索匹配表达式的字符串。
+    options：
+    	-c：只输出匹配行的数量，而不输出匹配的行。
+    	-E：启用扩展表达式
+    	-h：取消每个输出行的普通前缀，不输出它的文件名。
+    	-i：忽略大小写
+    	-l: 只列出输出行的文件名，不列出具体的行
+    	-v: 反向匹配，即不匹配pattern的行输出。
+    ```
+
+    DEMO：
+
+    ```bash
+    #grep -h ...
+    tqx@LAPTOP-G3KT1I3B:/mnt/d/workspace/clion/github-repository/program/linux-learn/system_call$ grep -hr fork ./
+    # but without wasting forks for bash or zsh.
+                 # Try only shells that exist, to save several forks.
+    @%:@ Set @S|@? to STATUS, without forking.
+    @%:@ global @S|@as_val. Take advantage of shells that can avoid forks. The arguments
+    # but without wasting forks for bash or zsh.
+    @%:@ Set @S|@? to STATUS, without forking.
+    @%:@ global @S|@as_val. Take advantage of shells that can avoid forks. The arguments
+    # but without wasting forks for bash or zsh.
+                 # Try only shells that exist, to save several forks.
+    @%:@ Set @S|@? to STATUS, without forking.
+    @%:@ global @S|@as_val. Take advantage of shells that can avoid forks. The arguments
+    # but without wasting forks for bash or zsh.
+    @%:@ Set @S|@? to STATUS, without forking.
+    @%:@ global @S|@as_val. Take advantage of shells that can avoid forks. The arguments
+    grep: ./process/forks/fork: binary file matches
+            if((pid = fork()) < 0 ){
+                    printf("父进程fork(),子进程ID = %d\n",pid);
+            //当fork()完成后，会生成子进程共同执行该代码，一共2个进程执行，所以这条输出会生成2条。
+    grep: ./process/forks/fork1: binary file matches
+            if((pid = fork()) <0){
+    grep: ./process/forks/fork_create5: binary file matches
+                    if((pid = fork()) < 0 )
+    grep: ./process/wait/waitpid: binary file matches
+            if((pid = fork()) <0)
+            if((pid = fork()) <0)
+    grep: ./process/wait/wait_signal: binary file matches
+            if((pid = fork()) <0)
+    #grep -r ...  
+    tqx@LAPTOP-G3KT1I3B:/mnt/d/workspace/clion/github-repository/program/linux-learn/system_call$ grep -lr fork .
+    ./file/a.txt
+    ./file/b.txt
+    ./process/forks/fork
+    ./process/forks/fork.c
+    ./process/forks/fork1
+    ./process/forks/fork1.c
+    ./process/forks/fork_create5
+    ./process/forks/fork_create5.c
+    ./process/wait/waitpid
+    ./process/wait/waitpid.c
+    ./process/wait/wait_nornal.c
+    ./process/wait/wait_signal
+    ./process/wait/wait_signal.c
+    ```
+
+    ###### 正则表达式：
+
+    - **^ : 匹配一行的开头：**
+
+    ```bash
+    #输出以int开头的那一行
+    tqx@LAPTOP-G3KT1I3B:/mnt/d/workspace/clion/github-repository/program/linux-learn/system_call$ grep ^int std/stdin.c
+    int main(){
+    ```
+
+    - **$:匹配结尾：**
+
+      ```bash
+      #输出以 写为末尾的行：
+      tqx@LAPTOP-G3KT1I3B$ grep 写$ std/stdin.c
+      //通过read、write针对标准输入(0)、输出(1)、错误(2)进行读写
+      ```
+
+      
+
+    - . : 任意单个字符：
+
+      ```bash
+      #输出以 写为结尾的，倒数第二个字符为任意字符的行：
+      tqx@LAPTOP-G3KT1I3B$ grep .写$ std/stdin.c
+      //通过read、write针对标准输入(0)、输出(1)、错误(2)进行读写
+      
+      #输出以任意前两个字符开头，第三个字符为t的行：
+      tqx@LAPTOP-G3KT1I3B$ grep ^..t std/stdin.c
+      int main(){
+      ```
+
+      
+
+    - [] : 匹配方括号范围内任意的一个字符，如果不希望匹配该范围内的任意字符，在其中添加^:
+
+      ```bash
+      #匹配不以/或者#开头的行：
+      tqx@LAPTOP-G3KT1I3B$ grep ^[^/#] std/stdin.c
+      int main(){
+              char buf[128];
+              int r_len = read(0,buf,sizeof(buf));
+              if(write(1,buf,r_len) != r_len){
+                      char msg[] = "写入的字节数不正确";
+                      write(2,msg,strlen(msg));
+              }
+              return 0;
+      }
+      ```
+
+    - 数字类[:digit:]：
+
+      ```bash
+      #[:digit:]表示任意数字，使用时需要添加[]表示范围
+      tqx@LAPTOP-G3KT1I3B$ grep [[:digit:]] std/stdin.c
+      //通过read、write针对标准输入(0)、输出(1)、错误(2)进行读写
+              char buf[128];
+              int r_len = read(0,buf,sizeof(buf));
+              if(write(1,buf,r_len) != r_len){
+                      write(2,msg,strlen(msg));
+              return 0;
+      ```
+
+      
+
+    - 字母类[:alpha:]：
+
+      ```bash
+      #表示任意大小写字母：
+      #查询以任意字母开头
+      tqx@LAPTOP-G3KT1I3B$ grep ^[[:alpha:]] std/stdin.c
+      int main(){
+      ```
+
+      ###### 剩余的正则匹配还有：
+
+    - 大写字母[:upper:]
+
+    - 小写字母[:lower:]
+
+    - 字母+数字类[:alnum:]
+
+    - 空格、制表符：[:space:]与[:blank:]
+
+    - 可输出字符[:print:]
+
+    - 十六进制数字[:xdigit:]
+
+    - ascii字符[:ascii:]...
+
+      **使用了-E选项后，可以使用如下正则表达式的扩展选项。由于他们都是特殊字符，在使用时必须以\对其进行转义:**
+
+      - ? : 匹配一次或者0次：
+
+      - *: 匹配0次或多次。
+
+      - +：最少匹配一次
+
+      - {n}: 必须匹配n次
+
+      - {n,}:最少匹配n次
+
+      - {n,m}:匹配n到m次，包含n与m
+
+        ###### DEMO:
+
+        ###### 1、匹配单词长度在4-10之间的字符串：
+
+        ```bash
+        tqx@LAPTOP-G3KT1I3B$ grep -E [a-z]\{4,10\} std/stdin.c
+        #include <unistd.h>
+        #include <stdlib.h>
+        #include <string.h>
+        //通过read、write针对标准输入(0)、输出(1)、错误(2)进行读写
+        int main(){
+                char buf[128];
+                int r_len = read(0,buf,sizeof(buf));
+                if(write(1,buf,r_len) != r_len){
+                        char msg[] = "写入的字节数不正确";
+                        write(2,msg,strlen(msg));
+                return 0;
+        ```
+
+        ###### 2、匹配长度为4的字符串，并且以空格左右隔开：
+
+        ```bash
+        tqx@LAPTOP-G3KT1I3B$ grep -E [[:space:]][a-z]\{4\}[[:space:]] std/stdin.c
+                char buf[128];
+                        char msg[] = "写入的字节数不正确";
+        ```
+
+        
+
+27. 

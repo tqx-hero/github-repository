@@ -1,82 +1,106 @@
 /**
- * 3498. 字符串的反转度
-简单
+ * 1807. 替换字符串中的括号内容
+中等
 相关标签
 premium lock icon
 相关企业
 提示
-给你一个字符串 s，计算其 反转度。
+给你一个字符串 s ，它包含一些括号对，每个括号中包含一个 非空 的键。
 
-反转度的计算方法如下：
+比方说，字符串 "(name)is(age)yearsold" 中，有 两个 括号对，分别包含键 "name" 和 "age" 。
+你知道许多键对应的值，这些关系由二维字符串数组 knowledge 表示，其中 knowledge[i] = [keyi, valuei] ，表示键 keyi 对应的值为 valuei 。
 
-对于每个字符，将其在 反转 字母表中的位置（'a' = 26, 'b' = 25, ..., 'z' = 1）与其在字符串中的位置（下标从1 开始）相乘。
-将这些乘积加起来，得到字符串中所有字符的和。
-返回 反转度。
+你需要替换 所有 的括号对。当你替换一个括号对，且它包含的键为 keyi 时，你需要：
+
+将 keyi 和括号用对应的值 valuei 替换。
+如果从 knowledge 中无法得知某个键对应的值，你需要将 keyi 和括号用问号 "?" 替换（不需要引号）。
+knowledge 中每个键最多只会出现一次。s 中不会有嵌套的括号。
+
+请你返回替换 所有 括号对后的结果字符串。
 
 
 
 示例 1：
 
-输入： s = "abc"
-
-输出： 148
-
+输入：s = "(name)is(age)yearsold", knowledge = [["name","bob"],["age","two"]]
+输出："bobistwoyearsold"
 解释：
-
-字母	反转字母表中的位置	字符串中的位置	乘积
-'a'	26	1	26
-'b'	25	2	50
-'c'	24	3	72
-反转度是 26 + 50 + 72 = 148 。
-
+键 "name" 对应的值为 "bob" ，所以将 "(name)" 替换为 "bob" 。
+键 "age" 对应的值为 "two" ，所以将 "(age)" 替换为 "two" 。
 示例 2：
 
-输入： s = "zaza"
+输入：s = "hi(name)", knowledge = [["a","b"]]
+输出："hi?"
+解释：由于不知道键 "name" 对应的值，所以用 "?" 替换 "(name)" 。
+示例 3：
 
-输出： 160
-
-解释：
-
-字母	反转字母表中的位置	字符串中的位置	乘积
-'z'	1	1	1
-'a'	26	2	52
-'z'	1	3	3
-'a'	26	4	104
-反转度是 1 + 52 + 3 + 104 = 160 。
-
+输入：s = "(a)(a)(a)aaa", knowledge = [["a","yes"]]
+输出："yesyesyesaaa"
+解释：相同的键在 s 中可能会出现多次。
+键 "a" 对应的值为 "yes" ，所以将所有的 "(a)" 替换为 "yes" 。
+注意，不在括号里的 "a" 不需要被替换。
 
 
 提示：
 
-1 <= s.length <= 1000
-s 仅包含小写字母。
+1 <= s.length <= 105
+0 <= knowledge.length <= 105
+knowledge[i].length == 2
+1 <= keyi.length, valuei.length <= 10
+s 只包含小写英文字母和圆括号 '(' 和 ')' 。
+s 中每一个左圆括号 '(' 都有对应的右圆括号 ')' 。
+s 中每对括号内的键都不会为空。
+s 中不会有嵌套括号对。
+keyi 和 valuei 只包含小写英文字母。
+knowledge 中的 keyi 不会重复。
  */
+#include <vector>
 #include <string>
-#include <array>
+#include <unordered_map>
+#include <algorithm>
 #include <iostream>
 using namespace std;
 
 class Solution
 {
 public:
-    int reverseDegree(string s)
+    string evaluate(string s, vector<vector<string>> &knowledge)
     {
-        array<int, 26> arr;
-        arr[0] = 26;
-        int i;
-        for (i = 1; i < 26; ++i)
-            arr[i] = arr[i - 1] - 1;
-        int ret = 0,size =static_cast<int>(s.size());
+        // 将键值对放入哈希表，遍历字符串，当遇到左括号时开始截取括号内字符串str，查看str是否存在于哈希表
+        unordered_map<string, string> hash_map;
+        for_each(knowledge.begin(), knowledge.end(), [&hash_map](const vector<string> &str)
+                 { hash_map[str[0]] = str[1]; });
+        string ret;
+        int i, j, size = static_cast<int>(s.size());
+        unordered_map<string, string>::iterator it, end_it = hash_map.end();
         for (i = 0; i < size; ++i)
-            ret += arr[s[i] - 'a'] * (i + 1);
+        {
+            if (s[i] != '(')
+                ret.push_back(s[i]);
+            else
+            {
+                // 遇到左括号时，先取出括号内字符串
+                string sret;
+                for (j = i + 1; s[j] != ')'; j++)
+                    sret.push_back(s[j]);
+                if ((it = hash_map.find(sret)) == end_it)
+                    ret.append("?");
+                else
+                    ret.append(it->second);
+                // 设置i指针
+                i = j;
+            }
+        }
         return ret;
     }
 };
 
 // int main()
 // {
-//     string s = "abc";
+//     // s = "(name)is(age)yearsold", knowledge = [["name","bob"],["age","two"]]
+//     string s = "(name)is(age)yearsold";
+//     vector<vector<string>> knowledge = {{"name", "bob"}, {"age", "two"}};
 //     Solution sl;
-//     cout << sl.reverseDegree(s) << endl;
+//     cout << sl.evaluate(s, knowledge) << endl;
 //     return 0;
 // }

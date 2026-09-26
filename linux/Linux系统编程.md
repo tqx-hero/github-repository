@@ -804,6 +804,10 @@
     		WNOHANG: 立即返回，即使没有子进程退出也不会阻塞。
     			当仍有子进程执行但是没有子进程退出时，返回值pid=0
     			当没有子进程时，返回值pid=-1
+    	return:
+    		>0 : 子进程的pid
+    		=0 : 当options为WNOHANG，没有子进程退出时返回值为0，表示没有子进程退出。
+    		=-1: 函数出错，errno被填充，或者子进程已经全部退出。
     		
     */
     pid_t waitpid(pid_t pid, int *_Nullable wstatus, int options);

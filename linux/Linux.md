@@ -877,4 +877,86 @@
 
     
 
-51. 
+51. 复用上一条指令的所有参数:
+
+    ```bash
+    !*	#将上条指令的参数列表复用到本条指令
+    
+    tqx@LAPTOP-G3KT1I3B$ cp ../trap.sh ./trap.bak	#1、复制指令
+    tqx@LAPTOP-G3KT1I3B$ ll !*	#2、ll指令，参数列表复用上一条cp指令的参数
+    ll ../trap.sh ./trap.bak
+    -rwxrwxrwx 1 tqx tqx 586 Sep 21 20:29 ../trap.sh*
+    -rwxrwxrwx 1 tqx tqx 586 Sep 26 17:00 ./trap.bak*
+    ```
+
+    
+
+52. 复制文件：
+
+    ```bash
+    cp [options] ...sources...dirctionay..
+    
+    options:
+    	-p: 保留文件的元数据，包括创建、修改、访问日期，属主，属组等元数据。
+    	-r/R: 递归复制，文件夹必须要带这个选项。
+    	-d: 如果文件为链接文件，不会解引用去复制被链接的文件，而是复制链接文件
+    	-a: 符合选项，等价于: -drp,常用于备份，需要保留文件的所有属性
+    	-i: 当文件存在时会提醒是否覆盖选项。 
+    	-v: 查看复制过程
+    	-b: 复制文件时如果已经存在了文件，先对文件进行备份，再复制文件。该方式默认只会备份一个。
+    		等价于： --backup[=CONTROL]，
+    		CONTROL：
+    			numbered: 该选项会按照数字从1开始进行累计备份多个
+    			
+    			 none, off
+                  never make backups (even if --backup is given)
+    
+          		 numbered, t
+                  make numbered backups
+    
+          		 existing, nil
+                  numbered if numbered backups exist, simple otherwise
+    
+           		simple, never
+                  always make simple backups
+    ```
+
+    DEMO:
+
+    ```bash
+    tqx@LAPTOP-G3KT1I3B$ cp -p /etc/vconsole.conf ./	#使用-p，拷贝的是链接文件所指向的目标文件
+    tqx@LAPTOP-G3KT1I3B$ ll
+    total 0
+    drwxrwxrwx 1 tqx tqx 4096 Sep 26 18:10 ./
+    drwxrwxrwx 1 tqx tqx 4096 Sep 26 16:58 ../
+    -rwxrwxrwx 1 tqx tqx  586 Sep 21 20:29 trap.bak*
+    -rwxrwxrwx 1 tqx tqx  150 Jan  7  2025 vconsole.conf*	#拷贝后的文件不是链接文件本身
+    
+    tqx@LAPTOP-G3KT1I3B$ cp -a /etc/vconsole.conf ./	#-a拷贝的是链接文件，保留它的所有属性
+    tqx@LAPTOP-G3KT1I3B$ ll
+    total 0
+    drwxrwxrwx 1 tqx tqx 4096 Sep 26 18:10 ./
+    drwxrwxrwx 1 tqx tqx 4096 Sep 26 16:58 ../
+    -rwxrwxrwx 1 tqx tqx  586 Sep 21 20:29 trap.bak*
+    lrwxrwxrwx 1 tqx tqx   16 Jan  7  2025 vconsole.conf -> default/keyboard
+    ```
+
+    --backup=numbered:
+
+    ```bash
+    tqx@LAPTOP-G3KT1I3B:/mnt/d/workspace/clion/github-repository/program/linux-learn/shell/cp$ cp --backup=numbered t1 t2
+    tqx@LAPTOP-G3KT1I3B:/mnt/d/workspace/clion/github-repository/program/linux-learn/shell/cp$ ls
+    t1  t2  t2.~1~  t2~  trap.bak	#会按照~n~后缀进行升序备份多个
+    ```
+
+    --backup(-b):
+
+    ```bash
+    tqx@LAPTOP-G3KT1I3B:/mnt/d/workspace/clion/github-repository/program/linux-learn/shell/cp$ cp -b t1 t2
+    tqx@LAPTOP-G3KT1I3B:/mnt/d/workspace/clion/github-repository/program/linux-learn/shell/cp$ ls
+    t1  t2  t2~  trap.bak	#仅会备份一个。
+    ```
+
+    
+
+53. 

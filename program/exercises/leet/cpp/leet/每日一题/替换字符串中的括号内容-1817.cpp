@@ -81,14 +81,12 @@ public:
             {
                 // 遇到左括号时，先取出括号内字符串
                 string sret;
-                for (j = i + 1; s[j] != ')'; j++)
-                    sret.push_back(s[j]);
+                for (++i; s[i] != ')'; i++)
+                    sret.push_back(s[i]);
                 if ((it = hash_map.find(sret)) == end_it)
                     ret.append("?");
                 else
                     ret.append(it->second);
-                // 设置i指针
-                i = j;
             }
         }
         return ret;

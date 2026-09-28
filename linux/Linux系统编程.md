@@ -673,6 +673,7 @@
    pid_t getpid();		//获取当前进程的进程号
    pid_t getppid();	//获取父进程号
    pid_t getpgid(pid_t pid); //获取指定进程的组id,参数为0，表示获取当前进程组的组号
+   int setpgid(pid_t pid, pid_t pgid); //将pid进程放到进程组pgid中，成功返回0，失败返回-1，并填充errno
    typedef int pid_t;
    ```
 
@@ -855,4 +856,38 @@
 
     
 
-12. 
+12. 获取文件描述符的文件名：
+
+    ```c
+    #include <unistd.h>
+    //根据文件描述符获取文件名称
+    char *ttyname(int fd);
+    ```
+
+    DEMO:
+
+    ```c
+    #include <unistd.h>
+    #include <stdio.h>
+    #include <stdlib.h>
+    
+    int main(){
+            char* stdin_name =  ttyname(0);
+            fprintf(stdout,"标准输入的文件 = %s\n",stdin_name);
+            char* stdout_name =  ttyname(1);
+            fprintf(stdout,"标准输出的文件 = %s\n",stdout_name);
+            char* stderr_name =  ttyname(2);
+            fprintf(stdout,"标准错误的文件 = %s\n",stderr_name);
+            return 0;
+    }
+    
+    //结果：
+    tqx@LAPTOP-G3KT1I3B$ ./ttyname
+    标准输入的文件 = /dev/pts/0
+    标准输出的文件 = /dev/pts/0
+    标准错误的文件 = /dev/pts/0
+    ```
+
+    
+
+13. 

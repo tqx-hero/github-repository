@@ -56,11 +56,11 @@ public:
     }
 };
 
-int main()
-{
-    // string s = "abc", t = "ahbgdc";
-    string s = "axc", t = "ahbgdc";
-    Solution sl;
-    cout << sl.isSubsequence(s, t) << endl;
-    return 0;
-}
+// int main()
+// {
+//     // string s = "abc", t = "ahbgdc";
+//     string s = "axc", t = "ahbgdc";
+//     Solution sl;
+//     cout << sl.isSubsequence(s, t) << endl;
+//     return 0;
+// }

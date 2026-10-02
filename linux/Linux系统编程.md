@@ -890,4 +890,139 @@
 
     
 
-13. 
+13. 守护进程：
+
+    ```c
+    #include <sys/types.h>
+    #include <unistd.h>
+    //剥离当前进程与父进程的关系，创建一个新的会话，当前进程设置为组长
+    /**return : 
+    	-1 : 创建失败，失败号码保存在errno
+    	非-1： 创建成功，返回值为新的会话id
+    */
+    pid_t setsid(void);
+    ```
+
+    DEMO(设置子进程为守护进程，创建日志文件，每隔5秒往日志文件中添加hello world):
+
+    ```c
+      1 #include <stdio.h>
+      2 #include <stdlib.h>
+      3 #include <unistd.h>
+      4 #include <sys/types.h>
+      5 #include <sys/stat.h>
+      6 #include <fcntl.h>
+      7
+      8 int main(){
+      9         //fork创建子进程
+     10         pid_t pid;
+     11         if((pid = fork()) < 0)
+     12         {
+     13                 perror("");
+     14                 return -1;
+     15         }
+     16         //父进程退出
+     17         if(pid)
+     18                 return 0;
+     19         //子进程创建会话
+     20         setsid();
+     21         //改变工作目录到根目录(可选)
+     22         chdir("/");
+     23         //关闭文件描述符(可选)
+     24         close(0);
+     25         close(1);
+     26         close(2);
+     27         //设置进程的掩码(可选)
+     28         umask(0000);
+     29         //设置执行任务
+     30         //每5秒向日志文件中追加信息
+     31         int fd = open("/home/tqx/linux-learn/deamon/deamon.log",O_CREAT | O_WRONLY | O_APPEND,0644);
+     32         if(fd == -1){
+     33                 perror("");
+     34                 exit(-1);
+     35         }
+     36         char buf[] = "hello world\n";
+     37         while(1){
+     38                 write(fd,buf,sizeof(buf));
+     39                 sleep(5);
+     40         }
+     41         return 0;
+     42 }
+    ```
+
+    
+
+14. vfork(写时复制fork):
+
+    ```c
+    #include <sys/types.h>
+    #include <unistd.h>
+    //创建子进程，使用copyOnWrite写时复制策略，一开始不会直接拷贝内存，而是先共用父进程的内存空间，子进程先执行，父进程阻塞
+    //当子进程执行到exec(声明需要执行的shell命令)时才会进行拷贝,替换内存中的信息为需要执行exec指令的内容
+    //或者子进程显式调用exit(),子进程退出。
+    //以上两种情况出现后，父进程才会移动PC继续往下执行。
+    pid_t vfork(void);
+    ```
+
+    DEMO(vfork之后调用exit):
+
+    ```c
+      1 #include <stdio.h>
+      2 #include <stdlib.h>
+      3 #include <sys/types.h>
+      4 #include <unistd.h>
+      5 //vfork的使用
+      6 int main(){
+      7         pid_t pid;
+      8         int a = 20;
+      9         if((pid = vfork()) == -1){	//vfork之后父进程阻塞在这里，PC指向第10行
+     10                 perror("");
+     11                 exit(-1);
+     12         }else if(pid == 0){
+     13                 fprintf(stdout,"这是子进程...\n");
+     14                 a+=10;	//此时子进程还没有复制父进程内存空间，与父进程共用，所以执行后会改变父进程a的输出
+     15                 sleep(2);
+     16                 exit(0);	//子进程调用exit退出后，父进程再从vfork()代码的下一条语句开始执行
+     17         }else {
+     18                 printf("这是父进程...\n");
+     19                 printf("a = %d\n",a);	//输出30
+     20         }
+     21         return 0;	//注意：子进程与父进程使用的是同一块栈区，所以子进程如果执行return，会弹栈并销毁，一定不要在父子进程同时使用该内存区域时触发return
+     22 }
+    ```
+
+    DEMO(子进程通过exec函数族执行其他任务):
+
+    ```c
+      1 #include <stdio.h>
+      2 #include <stdlib.h>
+      3 #include <sys/types.h>
+      4 #include <unistd.h>
+      5 //vfork的使用
+      6 int main(){
+      7         pid_t pid;
+      8         int a = 20;
+      9         if((pid = vfork()) == -1){
+     10                 perror("");
+     11                 exit(-1);
+     12         }else if(pid == 0){
+     13                 fprintf(stdout,"这是子进程...\n");
+     14                 a+=10;	//此时子进程还没有复制父进程内存空间，与父进程共用，所以执行后会改变父进程a的输出
+     15                 execl("/bin/echo","echo","hello world","\n",(char* )NULL);	//子进程通过exec函数执行命令，这时会启动写时复制
+     16                 //execlp("touch","touch","vfork.txt",(char*)NULL);
+     17                 sleep(2);
+     18                 perror("exec failed");
+     19                 exit(-1);
+     20         }else {
+     21                 printf("这是父进程...\n");
+     22                 printf("a = %d\n",a);
+     23         }
+     24         return 0;
+     25 }
+    ```
+
+    
+
+15. exec函数族：
+
+16. 

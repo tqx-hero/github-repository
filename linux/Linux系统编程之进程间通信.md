@@ -1,0 +1,246 @@
+# Linux系统编程之进程间通信
+
+1. ### 无名管道：
+
+   - ##### 通过pipe读取(man 3 pipe)：
+
+   ###### 一段共享的内存区域，一端用来写入数据，一端用来读取数据。
+
+   ###### 不同进程要想共享这个内存区域，必须使用相同的写入端与读取端，那就是需要拥有相同的文件描述符。因此各个进程之间必须是经过同一个进程fork一次或者多次生成的。
+
+   ```c
+   #include <unistd.h>
+   /**
+   	files: 传入大小为2的整型数组，返回读写的2个文件描述符。
+   		files[0] : 读取端的文件描述符
+   		files[1] : 写入端的文件描述符
+   	return：
+   		0： 管道创建创建成功
+   		-1: 创建失败，错误码errno
+   */
+   int pipe(int fildes[2]);
+   int close(int fd);
+   ```
+
+   ###### demo(创建管道，并fork出子进程，子进程负责读取管道数据，父进程写入管道数据):
+
+   ```c
+     1 #include <stdio.h>
+     2 #include <unistd.h>
+     3 #include <stdlib.h>
+     4 #include <string.h>
+     5
+     6 int main(){
+     7         int fds[2];
+     8         ssize_t nbytes;
+     9         //创建管道，生成读写2端的文件描述符
+    10         if(pipe(fds) == -1){
+    11                 perror("pipe create error");
+    12                 exit(-1);
+    13         }
+    14         switch(fork()){
+    15                 case -1:
+    16                         perror("fork error");
+    17                         break;
+    18                 case 0:
+    19                         //子进程，仅读取管道内的数据
+    20                         close(fds[1]);  //关闭写管道，因为只用读取
+    21                         char buf[128];
+    22                         nbytes = read(fds[0],buf,sizeof(buf));
+    23                         fprintf(stdout,"读到的管道内容：%s\n",buf);
+    24                         close(fds[0]);
+    25                         break;
+    26                 default:
+    27                         //父进程，只写入管道
+    28                         close(fds[0]);
+    29                         char* rstr = "国庆快乐，同志们!";
+    30                         write(fds[1],rstr,strlen(rstr)+1);
+    31                         close(fds[1]);
+    32                         break;
+    33         }
+    34         return 0;
+    35 }
+   ```
+
+   - ##### 通过popen读取(man 3 popen)：
+
+     ###### popen()可以通过命令行、可执行脚本为输入端或输出端，对其进行读取、写入。
+
+     ```c
+     #include <stdio.h>
+     /**
+     	开启管道，连接命令行与FILE句柄
+     	command: 
+     		管道一端的命令或者可执行程序
+     	type:
+     		"r": 以读方式从command读取数据到FILE*
+     		"w": 以写方式从FILE*向command写入数据
+     */
+     FILE *popen(const char *command, const char *type);
+     //关闭管道
+     int pclose(FILE *stream);
+     ```
+
+     ###### 以r方式打开管道（等价于：uname -a | more）：
+
+     ```c
+       1 #include <unistd.h>
+       2 #include <stdio.h>
+       3 //#include <unistd.h>
+       4 //popen()函数的r使用
+       5 int main(){
+       6         FILE* fptr = popen("uname -a","r"); //以读取的方式打开一个管道，该管道从第一个参数(命令)中读取
+       7         char buf[128];
+       8         if(fptr){
+       9                 fread(buf,1,sizeof(buf),fptr); //读取管道内的数据
+      10                 fprintf(stdout,"%s\n",buf);
+      11         }
+      12         pclose(fptr);
+      13         return 0;
+      14 }
+     ```
+
+     ###### 输出：
+
+     ```bash
+     tqx@linux-ubuntu$ ./popen
+     Linux linux-ubuntu.org 5.15.0-139-generic #149~20.04.1-Ubuntu SMP Wed Apr 16 08:29:56 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     ```
+
+   
+
+   ###### 		以w方式打开管道（等价于： echo "国庆节快乐，同志们!" | more ）：
+
+   ​		
+
+   ```c
+     1 #include <stdio.h>
+     2 #include <unistd.h>
+     3 //popen()以w方式打开管道
+     4 int main(){
+     5         FILE* wptr = popen("more","w");	//以写入方式打开管道，FILE*作为命令more的输入端
+     6         if(!wptr){
+     7                 perror("popen pipe error");
+     8                 return -1;
+     9         }
+    10         char buf[]="国庆节快乐，同志们!";
+    11         fwrite(buf,1,sizeof(buf),wptr); //将信息写入管道
+    12         pclose(wptr);
+    13         return 0;
+    14 }
+   ```
+
+   ###### 多次读取：
+
+   ```c
+     1 #include <stdio.h>
+     2 #include <string.h>
+     3 #include <stdlib.h>
+     4 #define BUFSIZE 1023
+     5 //读取ps -aux并输出
+     6 int main(){
+     7         FILE* rptr = popen("ps -aux","r");
+     8         if(!rptr){
+     9                 perror("popen ps -aux error");
+    10                 return -1;
+    11         }
+    12         //读取管道内的数据
+    13         char buf[BUFSIZE+1];
+    14         ssize_t nbytes;
+    15         while(1){
+    16                 nbytes = fread(buf,sizeof(char),BUFSIZE,rptr);
+    17                 buf[nbytes]=0;
+    18                 fprintf(stdout,"%s",buf);
+    19                 if(nbytes < BUFSIZE)
+    20                         break;
+    21         }
+    22         fclose(rptr);
+    23         return 0;
+    24 }
+   ```
+
+   
+
+   - ###### pipe()+fork()+exec()实现父进程往管道内写入数据，子进程从管道内读取数据：
+
+     ###### pipe2.c:
+
+     ```c
+       //pipe2.c: 创建管道、fork子进程，子进程execv执行另一个程序(通过argv传递管道的fd),父进程写入数据，最后waitpid回收子进程.
+       1 #include <stdio.h>
+       2 #include <unistd.h>
+       3 #include <stdlib.h>
+       4 #include <sys/wait.h>
+       5 //使用pipe()+fork()+exec()实现跨进程之间的管道通信
+       6 //父进程负责往管道内写入，子进程负责读取出来
+       7 int main(){
+       8         //pipe创建管道
+       9         int filedes[2];
+      10         pid_t pid;
+      11         if(pipe(filedes) == -1){
+      12                 perror("create pipe error");
+      13                 exit(-1);
+      14         }
+      15         //创建子进程
+      16         if((pid = fork()) == -1){
+      17                 perror("fork error");
+      18                 close(filedes[0]);
+      19                 close(filedes[1]);
+      20                 exit(-1);
+      21         }
+      22         if(pid == 0){
+      23                 //子进程去执行另一个程序
+      24                 char rfd[16],wfd[16];
+          				//将读写管道的fd打包成字符串格式，放入argv数组作为exec()的参数
+      25                 sprintf(rfd,"%d",filedes[0]);
+      26                 sprintf(wfd,"%d",filedes[1]);
+      27                 char * argv[] = {"pipe3",rfd,wfd,NULL};
+      28                 execv("./pipe3",argv);	//子进程执行同目录下的pipe3程序
+      29                 perror("execv pipe3 error");
+      30                 exit(-1);
+      31         }
+      32         //父进程负责写入数据
+      33         char buf[] = "大家好才是真的好!";
+      34         write(filedes[1],buf,sizeof(buf));
+      35         close(filedes[0]);
+      36         close(filedes[1]);
+      37         //父进程等待子进程结束，回收PCB
+      38         waitpid(pid,NULL,0);
+      39         return 0;
+      40 }
+     ```
+
+     ###### pipe3.c(子进程exec执行的程序，读取父进程写入管道内的消息):
+
+     ```c
+       1 #include <stdio.h>
+       2 #include <string.h>
+       3 #include <stdlib.h>
+       4 #include <unistd.h>
+       5 //pipe2子进程执行的程序，用于输出父进程写入管道的内容
+       6 int main(int argc,char** argv){
+       7         int rfd,wfd;
+       8         sscanf(argv[1],"%d",&rfd);	//格式化读写fd，还原成int类型
+       9         sscanf(argv[2],"%d",&wfd);
+      10         printf("rfd = %d\n",rfd);
+      11         printf("wfd = %d\n",wfd);
+      12         close(wfd); //关闭写描述符
+      13         char buf[128];
+      14         read(rfd,buf,sizeof(buf));	//通过fd读取管道的消息
+      15         printf("管道中的内容：%s\n",buf);
+      16         close(rfd);
+      17         return 0;
+      18 }
+     ```
+
+     
+
+2. ### 有名管道：
+
+3. ### 消息队列：
+
+4. ### mmap：
+
+5. ### 共享内存：
+
+6. ## 

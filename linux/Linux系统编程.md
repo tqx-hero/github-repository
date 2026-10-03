@@ -275,7 +275,7 @@
 
    
 
-6. 获取文件的属性stat(man 2 stat)：
+6. ##### 获取文件的属性stat(man 2 stat)：
 
    ```c
    #include <sys/types.h>
@@ -1309,4 +1309,62 @@
 
     - 
 
-17. 
+17. ###### chmod修改文件的访问权限(man 2 chmod)：
+
+    ```c
+    #include <sys/stat.h>
+    /**
+    	pathname: 文件路径
+    	mode: 文件的访问权限，访问权限见第六条stat
+    	return: 
+    		成功：返回0
+    		失败：返回-1，错误码在errno
+    */
+    int chmod(const char *pathname, mode_t mode);
+    ```
+
+    ###### demo:修改当前目录下test.txt文件的权限为644：
+
+    ```c
+      1 #include <sys/stat.h>
+      2 #include <sys/types.h>
+      3 #include <stdio.h>
+      4 #include <stdlib.h>
+      5
+      6 int main(){
+      7         if(chmod("./test.txt",0644) ==-1)
+      8                 perror("chmod test.txt error");
+      9         return 0;
+     10 }
+    ```
+
+    
+
+18. ##### chown修改文件的属主、属组：
+
+    ```c
+    #include <unistd.h>
+    /**
+    	pathname: 文件路径
+    	owner: 修改后的文件所属,当前用户的id可通过getuid()获取.取-1表示不会修改该属性。
+    	group: 修改后的文件属组，当前用户组id可通过getgid()获取。取-1表示不会修改该属性
+    */
+    int chown(const char *pathname, uid_t owner, gid_t group);
+    ```
+
+    ###### demo:
+
+    ```c
+      1 #include <unistd.h>
+      2 #include <stdio.h>
+      3
+      4 int main(){
+      5         if(chown("./test.txt",getuid(),getgid()) == -1)	//修改test.txt文件属主为当前用户，属组为当前用户组
+      6                 perror("chown file error");
+      7         return 0;
+      8 }
+    ```
+
+    
+
+19. 

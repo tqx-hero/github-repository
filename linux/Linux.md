@@ -877,16 +877,44 @@
 
     
 
-51. 复用上一条指令的所有参数:
+51. 复用上一条指令的参数:
 
     ```bash
-    !*	#将上条指令的参数列表复用到本条指令
-    
+    !*	#将上条指令的所有参数复用到本条指令,排除命令名本身
     tqx@LAPTOP-G3KT1I3B$ cp ../trap.sh ./trap.bak	#1、复制指令
     tqx@LAPTOP-G3KT1I3B$ ll !*	#2、ll指令，参数列表复用上一条cp指令的参数
     ll ../trap.sh ./trap.bak
     -rwxrwxrwx 1 tqx tqx 586 Sep 21 20:29 ../trap.sh*
     -rwxrwxrwx 1 tqx tqx 586 Sep 26 17:00 ./trap.bak*
+    
+    !$ #复用上条指令的最后一个参数
+    tqx@linux-ubuntu:~/linux-learn/system_call/exec$ gcc execve.c -o execve
+    tqx@linux-ubuntu:~/linux-learn/system_call/exec$ echo !$	#最后一个参数为execve
+    echo execve
+    execve
+    
+    !:n #复用上条指令的第n个参数，从0开始是命令本身
+    mv test1 test2 test3
+    echo !:1   # test1
+    echo !:2   # test2
+    echo !:3   # test3
+    
+    !^ #上条指令的第一个参数
+    cp a.txt b.txt
+    vim !^
+    #等价 vim a.txt
+    
+    !:1-3 #复用从1到3的参数
+    echo a b c d
+    ls !:1‑3
+    # ls a b c
+    
+    !! # 重复执行上一条指令
+    tqx@linux-ubuntu$ echo a b c d
+    a b c d
+    tqx@linux-ubuntu$ !!
+    echo a b c d
+    a b c d
     ```
 
     

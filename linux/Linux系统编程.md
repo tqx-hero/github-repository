@@ -856,7 +856,7 @@
 
     
 
-12. 获取文件描述符的文件名：
+12. 获取文件描述符的文件名(man 3 ..)：
 
     ```c
     #include <unistd.h>
@@ -952,19 +952,19 @@
 
     
 
-14. vfork(写时复制fork):
+14. vfork(写时复制fork)(man 2 vfork):
 
     ```c
     #include <sys/types.h>
     #include <unistd.h>
     //创建子进程，使用copyOnWrite写时复制策略，一开始不会直接拷贝内存，而是先共用父进程的内存空间，子进程先执行，父进程阻塞
     //当子进程执行到exec(声明需要执行的shell命令)时才会进行拷贝,替换内存中的信息为需要执行exec指令的内容
-    //或者子进程显式调用exit(),子进程退出。
+    //或者子进程显式调用_exit(),子进程退出。
     //以上两种情况出现后，父进程才会移动PC继续往下执行。
     pid_t vfork(void);
     ```
 
-    DEMO(vfork之后调用exit):
+    DEMO(vfork之后调用_exit):
 
     ```c
       1 #include <stdio.h>
@@ -982,7 +982,7 @@
      13                 fprintf(stdout,"这是子进程...\n");
      14                 a+=10;	//此时子进程还没有复制父进程内存空间，与父进程共用，所以执行后会改变父进程a的输出
      15                 sleep(2);
-     16                 exit(0);	//子进程调用exit退出后，父进程再从vfork()代码的下一条语句开始执行
+     16                 _exit(0);	//子进程调用_exit退出后，父进程再从vfork()代码的下一条语句开始执行
      17         }else {
      18                 printf("这是父进程...\n");
      19                 printf("a = %d\n",a);	//输出30
@@ -1012,7 +1012,7 @@
      16                 //execlp("touch","touch","vfork.txt",(char*)NULL);
      17                 sleep(2);
      18                 perror("exec failed");
-     19                 exit(-1);
+     19                 _exit(-1);
      20         }else {
      21                 printf("这是父进程...\n");
      22                 printf("a = %d\n",a);
@@ -1021,8 +1021,292 @@
      25 }
     ```
 
+    ***注意：*****必须使用_exit()函数，而不是exit()。前者为系统调用，后者为库函数，库函数有缓冲区，在退出时会刷新stdio的缓冲区，破坏父进程的数据。**
+
+15. execve系统调用(man 2 ):
+
+    ```c
+    #include <unistd.h>
+    //重新设置进程的堆、栈、寄存器等程序执行的数据，使进程执行指定的程序。
+    /**
+    	pathname: 可执行程序的路径。该文件必须为可执行的二进制文件/脚本文件
+    	argv: 设置可执行程序的参数列表。必须以NULL为结尾
+    	envp: 设置可执行程序的环境变量，必须以NULL为结尾。
+    	return：
+    		成功：不会返回任何东西，直接跳转到指定程序继续执行，execve()后面的语句也不会执行。
+    		失败：返回-1，会继续执行execve()后面的语句，错误码保存在全局变量errno中
+    	如果pathname指向的程序main函数定义如下：
+    	int main(int argc,char** argv,char** env);
+    	即可获取到execve函数传入的argv与envp参数。
+    	
+    */
+    int execve(const char *pathname, char *const argv[],
+               char *const envp[]);
+    ```
+
+    DEMO:
+
+    ```c
+      /***************execve.c****************/
+      1 #include <stdio.h>
+      2 #include <unistd.h>
+      3 //execve()系统调用
+      4 int main(){
+      5         char* argv[] ={"myexec","hello","world",NULL};
+      6         char* env[] = {NULL};
+      7         execve("./myexecve",argv,env);
+      8         perror("execve error");	//execve执行出现错误才会执行该条语句
+      9         return 0;
+     10 }
+    
+      /***************myexecve.c****************/
+      1 #include <stdio.h>
+      2 //测试execve()系统调用执行输出
+      3 int main(int argc,char** argv,char** env){
+      4         int i;
+      5         for(i=1;i< argc;++i)
+      6                 fprintf(stdout,"argv[%d] = %s\n",i,argv[i]);
+      7         while(*env){
+      8                 printf("%s\n",*env);
+      9                 env++;
+     10         }
+     11         return 0;
+     12 }
+    ```
+
+    输出结果：
+
+    ```bash
+    tqx@linux-ubuntu:~/linux-learn/system_call/exec$ ./!:3
+    ./execve
+    argv[1] = hello
+    argv[2] = world
+    ```
+
     
 
-15. exec函数族：
+16. exec函数族(man 3 exec)：
 
-16. 
+    ###### exec函数族都是库函数，均为在系统调用:execve()函数基础上进行的封装。
+
+    ```c
+    #include <unistd.h>
+    
+    extern char **environ;
+    /***********************以列表形式传参.***************************/
+    /**
+    	
+    	pathname: 要执行程序的路径
+    	arg0: 要执行程序的名称，仅仅用于进程名的显示，不会解析成指令
+    	arg1: 参数1
+    	arg2: 参数2
+    	....
+    	NULL: 必须以NULL为结尾，该哨兵用作参数结束标志
+    	return:
+    		-1: 出现错误，errno为错误码
+    		成功则不会返回，该进程已经更新了堆、栈、寄存器等信息，去执行其他的程序了。
+    */
+    int execl(const char *pathname, const char *arg, ...
+              /* (char  *) NULL */);
+    /**
+    	file: 要执行的文件名称，不需要写全路径，execlp函数会直接从环境变量PATH下查找该命令。
+    	arg0: 要执行的程序名称,仅仅用于进程名的显示，不会解析成指令
+    	arg1: 参数1
+    	arg2: 参数2
+    	....
+    	NULL: 必须以NULL为结尾，该哨兵用作参数结束标志
+    */
+    int execlp(const char *file, const char *arg, ...
+               /* (char  *) NULL */);
+    /**
+    	pathname: 要执行的文件路径
+    	arg0: 要执行程序的名称，仅仅用于进程名的显示，不会解析成指令
+    	arg1: 参数1
+    	arg2: 参数2
+    	....
+        NULL: 必须以NULL为结尾，该哨兵用作参数结束标志
+        envp: 环境变量的指针数组，用于设定要修改的环境变量列表。该指针数组必须以NULL为结尾
+    */
+    int execle(const char *pathname, const char *arg, ...
+               /*, (char *) NULL, char *const envp[] */);
+    /***与上述那些函数不同的是，下面的所有函数都是把参数列表放到了一个数组vector里面，除此之外功能全部相同**/
+    /**
+    	pathname: 文件路径
+    	argv[]: 参数列表，第一个参数是给脚本起的名称，必须以NULL作为数组的结尾
+    */
+    int execv(const char *pathname, char *const argv[]);
+    /**
+    	file: 文件名，函数名带p，可以通过PATH获取可执行程序的路径，所以只需要程序名称即可。
+    	argv[]: 参数列表，第一个参数是给脚本起的名称，必须以NULL作为数组的结尾
+    */
+    int execvp(const char *file, char *const argv[]);
+    /**
+    	该函数为GNU的扩展，非POSIX标准,使用之前必须添加#define _GNU_SOURCE声明
+    	file: 文件名，函数名带p，可以通过PATH获取可执行程序的路径，所以只需要程序名称即可。
+    	argv[]: 参数列表，第一个参数是给脚本起的名称，必须以NULL作为数组的结尾
+    	envp: 要修改的环境变量，数组同样必须以NULL为结尾
+    */
+    #define _GNU_SOURCE
+    int execvpe(const char *file, char *const argv[],
+                char *const envp[]);
+    ```
+
+    - execl示例：
+
+      ```c
+        1 #include <unistd.h>
+        2 #include <stdio.h>
+        3 #include <stdlib.h>
+        4 //#include <unistd.h>
+        5 //execl的使用
+        6 int main(){
+        7         execl("/bin/ls","ls","-lh",NULL);
+        8         return 0;
+        9 }
+      ```
+
+      输出：
+
+      ```bash
+      tqx@linux-ubuntu:~/linux-learn/system_call/exec$ ./execl
+      total 24K
+      -rwxrwxr-x 1 tqx tqx 17K Oct  3 08:30 execl
+      -rw-rw-r-- 1 tqx tqx 158 Oct  3 08:30 execl.c
+      ```
+
+      
+
+    - execlp:
+
+      **demo1:查找到/bin目录下的ls命令，执行**
+
+      ```c
+        1 #include <unistd.h>
+        2
+        3 int main(){
+        4         execlp("ls","myls","-lh", "/home/tqx",NULL);
+        5         return 0;
+        6 }
+      ```
+
+      **demo2:自定义myexecl可执行程序，并将其路径添加到PATH，通过execlp()查找PATH执行：**
+
+      ```bash
+      tqx@linux-ubuntu:~/linux-learn/system_call/exec$ echo $PATH		#原PATH环境变量
+      /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/tqx/linux-learn/path
+      # 添加自定义可执行程序到环境变量
+      tqx@linux-ubuntu:~/linux-learn/system_call/exec$ export PATH=$PATH:/home/tqx/linux-learn/system_call/exec
+      tqx@linux-ubuntu:~/linux-learn/system_call/exec$ echo $PATH
+      /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/tqx/linux-learn/path:/home/tqx/linux-learn/system_call/exec
+      ```
+
+      ```c
+        1 #include <unistd.h>
+        2 #include <stdio.h>
+        3
+        4 int main(){
+        5         if(execlp("myexecl","myexecl",NULL) == -1)
+        6                 perror("execlp error");
+        7         return 0;
+        8 }
+      ```
+
+      
+
+    - ##### execle:
+
+      ```c
+        1 #include <unistd.h>
+        2 #include <stdio.h>
+        3 #include <stdlib.h>
+        4 #include <string.h>
+        5 int main(){
+        6         char path[256];
+            		//修改执行脚本的环境变量PATH，将当前目录添加到PATH
+        7         sprintf(path,"PATH=%s:%s",getenv("PATH"),getenv("PWD"));
+        8         char* envp[]={path,NULL};	//注意指针数组的结尾也必须是NULL
+        9         if(execle("./myecho","myecho",NULL,envp) == -1)//执行当前目录下的myecho程序
+       10                 perror("execle error ");
+       11         return 0;
+       12 }
+      ```
+
+      ###### myecho程序：
+
+      ```c
+        1 #include <stdio.h>
+        2 #include <unistd.h>
+        3 #include <stdlib.h>
+        4 //测试修改环境变量是否生效
+        5 int main(){
+        6         printf("path = %s\n",getenv("PATH"));
+        7         return 0;
+        8 }
+      ```
+
+      ###### 输出结果：
+
+      ```bash
+      tqx@linux-ubuntu:~/linux-learn/system_call/exec$ ./execle	#环境变量PATH为修改之后的，execle函数把PATH修改了。
+      path = /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/tqx/linux-learn/path:/home/tqx/linux-learn/system_call/exec
+      ```
+
+      
+
+    - execv:
+
+      ```c
+        1 #include <unistd.h>
+        2 #include <string.h>
+        3 #include <stdio.h>
+        4 //execv函数使用
+        5 int main(){
+            		//与l类型把参数以列表形式枚举方式不同，v类型函数是将参数列表打包成一个数组，将数组传入函数
+        6         char* env[] = {"ls","-l","-h",NULL};	
+        7         if(execv("/bin/ls",env) == -1)
+        8                 perror("execv error");
+        9         return 0;
+       10 }
+      ```
+
+      
+
+    - exevp：
+
+      ```c
+        1 #include <stdio.h>
+        2 #include <unistd.h>
+        3 //execvp函数使用
+        4 int main(){
+        5         char* env[] = {"ls","-l","-h",NULL};	//同样打包参数列表到数组
+        6         execvp("ls",env);	//带p的函数第一个参数只需要文件名，路径会从PATH中查找
+        7         return 0;
+        8 }
+      ```
+
+      
+
+    - execvpe:
+
+      ```c
+        1 #define _GNU_SOURCE
+        2 #include <stdio.h>
+        3 #include <unistd.h>
+        4 #include <stdlib.h>
+        5 //execvpe()函数
+        6 int main(){
+        7         char * argv[] ={"myecho",NULL};	//定义参数列表
+        8         char path[128];	//定义环境变量数组，这里以拼接当前目录到PATH为例
+        9         sprintf(path,"PATH=%s:%s",getenv("PATH"),getenv("PWD"));
+       10         char * env[] ={path,NULL};
+       11         if(execvpe("./myecho",argv,env) == -1)	//执行脚本
+       12                 perror("myecho error");
+       13         return 0;
+       14 }
+      ```
+
+      
+
+    - 
+
+17. 

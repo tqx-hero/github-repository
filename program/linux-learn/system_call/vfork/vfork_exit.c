@@ -13,7 +13,7 @@ int main(){
 		fprintf(stdout,"这是子进程...\n");
 		a+=10;
 		sleep(2);
-		exit(0);
+		_exit(0);
 	}else {
 		printf("这是父进程...\n");
 		printf("a = %d\n",a);

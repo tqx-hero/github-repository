@@ -14,7 +14,7 @@ int main(){
 		execl("/bin/echo","echo","hello world","\n",(char* )NULL);
 		//execlp("touch","touch","vfork.txt",(char*)NULL);
 		perror("exec failed");
-		exit(-1);
+		_exit(-1);
 	}else {
 		printf("这是父进程...\n");
 		printf("a = %d\n",a);

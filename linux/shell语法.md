@@ -1092,4 +1092,96 @@
 
         
 
-27. 
+27. ##### 参数扩展(花括号{}):
+
+    - ###### 算数扩展，完成简单的算术运算：
+
+      ```bash
+        1 #!/bin/bash
+        2 i=0
+        3 while [ "$i" -ne 10 ];do
+        4         echo $i
+        5         i=$(( $i+1 ))	#对i进行+1运算，等价于 i+=1;
+        6 done
+      ```
+
+    - ###### 字符串拼接出现歧义，使用{}来保证变量的语义：
+
+      ```bash
+        1 #!/bin/bash
+        2
+        3 for i in 1 2
+        4 do
+        5 echo ${i}_name	#示例中使用{}括起来表示取参数的值为$i，而不是$i_name
+        6 done
+      ```
+
+    - ###### ${\#param}:获取变量的长度：
+
+      ```bash
+        1 #!/bin/bash
+        2 foo=barrrrrr
+        3 echo ${#foo}	#输出结果为8，表示foo变量的长度
+        4 exit 0
+      ```
+
+      
+
+    - ###### ${param:-default}:用来给未定义的变量设置默认值
+
+      ###### (注意：当且仅当param未定义时会以default值代替，param自始至终仍是未定义状态！):
+
+      ```bash
+      #!/bin/bash
+      unset foo
+      echo "\$foo = ${foo:-bar}"	#foo未定义状态，此时输出为： $foo = bar
+      foo=bbb
+      echo "\$foo = ${foo:-bar}"	#foo已被定义且赋值，此时该条语句不成立不会执行后面的-bar，此时输出： $foo = bbb
+      ```
+
+      
+
+    - ###### ${param#word}:从头开始匹配，删除与word匹配的最小部分，剩余的param子串全部输出
+
+      ```bash
+      #!/bin/bash
+      foo=/usr/include/x11/linux/shell
+      echo ${foo#*/}	#输出 usr/include/x11/linux/shell，第一个匹配 */的子串为第一个/,除了这个字符串其余全部保留
+      exit 0 
+      ```
+
+      
+
+    - ###### ${param##word}:从头开始匹配，删除与word匹配的最长部分的子串，其余子串全部输出
+
+      ```bash
+      #!/bin/bash
+      foo=usr/include/x11/linux/shell
+      echo ${foo##*/}		#输出： shell，匹配的最后一个*/的子串为usr/include/x11/linux/,剩余子串:shell全部保留
+      exit 0
+      ```
+
+      
+
+    - ###### ${param%word}:从尾部开始，删除与word匹配的最少部分，其余全部输出
+
+      ```bash
+      #!/bin/bash
+      foo=/usr/linux/include/x11/linux/shell
+      echo ${foo%/linux*}	#输出： /usr/linux/include/x11,%为从尾部向前找到与word匹配最短的部分进行删除，剩余保留
+      exit 0
+      ```
+
+      
+
+    - ###### ${param%%word}:从尾部开始，删除与word匹配的最长部分，其余全部输出
+
+      ```bash
+      #!/bin/bash
+      foo=/usr/linux/include/x11/linux/shell
+      echo ${foo%%/linux*}	#输出： /usr ，删除最长与 /linux* 匹配的子串，剩余全部输出
+      ```
+
+      
+
+28. 

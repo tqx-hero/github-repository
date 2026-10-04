@@ -71,6 +71,8 @@
    	示例见1.open
    */
    ssize_t write(int fd, const void *buf, size_t count);
+   
+   typedef long ssize_t;
    ```
 
    

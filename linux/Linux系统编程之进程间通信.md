@@ -233,9 +233,247 @@
       18 }
      ```
 
+   - ###### 也可以使用fcntl系统调用设置文件描述符的属性，例设置读fd为非阻塞：
+
+     ```c
+     #include <stdio.h>
+       2 #include <unistd.h>
+       3 #include <fcntl.h>
+       4 #include <stdlib.h>
+       5 #include <errno.h>
+       6 int main(){
+       7         int filedes[2];
+       8         if(pipe(filedes) == -1){
+       9                 perror("create pipe error");
+      10                 exit(-1);
+      11         }
+      12         pid_t pid;
+      13         char buf[128];
+      14         if((pid = fork()) == -1){
+      15                 perror("fork error");
+      16                 exit(-1);
+      17         }else if(pid ==0){
+      18                 //子进程的处理
+      19                 close(filedes[1]);      //子进程只负责读，关闭写
+      20                 //循环读，设置描述符为非阻塞状态
+      21                 int flag = fcntl(filedes[0],F_GETFL);
+      22                 flag |= O_NONBLOCK;
+      23                 fcntl(filedes[0],F_SETFL,flag);
+      24                 ssize_t nbytes;
+      25                 while(1){
+      26                         nbytes = read(filedes[0],buf,sizeof(buf));
+      27                         if(nbytes == -1 &&  errno == EAGAIN){
+      28                                 //printf("未读到消息..\n");
+      29                                 continue;
+      30                         }
+      31                         if (nbytes == -1){
+      32                                 perror("read fd error");
+      33                                 close(filedes[0]);
+      34                                 exit(-1);
+      35                         }
+      36                         if(!nbytes){
+      37                                 fprintf(stdout,"读取结束\n");
+      38                                 close(filedes[0]);
+      39                                 exit(0);
+      40                         }
+      41                         fprintf(stdout,"%s\n",buf);
+      42                 }
+      43         }else{
+      44                 close(filedes[0]);
+      45                 int i=0;
+      46                 while(1){
+      47                         char message[] = "hello world!";
+      48                         write(filedes[1],message,sizeof(message));
+      49                         sleep(1);
+      50                 }
+      51         }
+      52
+      53         return 0;
+      54 }
+     ```
+
      
 
+   - ###### 当管道的读端全部关闭后，如果还有进程往这个管道写入数据，OS会给该进程发送SIGPIPE（管道破裂信号）,并杀死该进程:
+
+     ```c
+      1 #include <stdio.h>
+       2 #include <string.h>
+       3 #include <unistd.h>
+       4 #include <sys/wait.h>
+       4 //测试sigpipe信号
+       5 int main(){
+       6         int fds[2];
+       7         pid_t pid;
+       8         if(pipe(fds) == -1){
+       9                 perror("pipe error");
+      10                 return -1;
+      11         }
+      12         if((pid = fork()) == -1){
+      13                 perror("fork error");
+      14                 close(fds[0]);
+      15                 close(fds[1]);
+      16                 return -1;
+      17         }
+      18         if(pid ==0){
+      19                 char buf[1024];
+      20                 close(fds[0]);	//子进程关闭读fd
+      21                 printf("子进程中...\n");
+      22                 memset(buf,'a',sizeof(buf));
+      23                 int i=1;
+      24                 ssize_t nbytes;
+      25                 while(1){
+      26                         sleep(2);
+          						//由于没有进程开启管道的读fd，该进程会收到SIGPIPE信号并被杀死
+      27                         nbytes = write(fds[1],buf,sizeof(buf));
+      28                         if(nbytes == -1){
+      29                                 perror("write error");
+      30                                 break;
+      31                         }
+      32                         printf("i = %d\n",i++);
+      33                 }
+      34         }
+      35         else{
+      36                 close(fds[0]);	//父进程关闭读fd
+      37                 waitpid(-1,NULL,0);	//父进程等待子进程结束回收PCB
+      38         }
+      39 //      close(fds[0]);
+      40         close(fds[1]);
+      41         return 0;
+      42 }
+     ```
+
+     
+
+   - 
+
 2. ### 有名管道：
+
+   - #### 不局限于进程之间有共同祖先，使用文件名对管道进行持久化，当使用管道时，OS会在内存中找到一块合适的区域，作为管道存放数据的载体。正由于Linux宗旨一切皆文件，管道也可以通过文件方式进行操作：open、read、write、close等等
+
+   - #### 创建管道：
+
+     ```c
+     #include <sys/types.h>
+     #include <sys/stat.h>
+     /**
+     	pathname: 管道名称
+     	mode: 设定管道的权限，参考open()的第三个参数mode
+     	return：
+     		0 ： 创建成功
+     		-1： 创建失败，errno存放错误码
+     */
+     int mkfifo(const char *pathname, mode_t mode);
+     ```
+
+     ###### 示例：
+
+     ```c
+       1 #include <unistd.h>
+       2 #include <stdio.h>
+       3 #include <stdlib.h>
+       4 #include <sys/types.h>
+       5 #include <sys/stat.h>
+       6 #include <fcntl.h>
+       7 //创建有名管道fifo
+       8 int main(){
+       9         char *path = "./myfifo";
+      10         struct stat st;
+      11         //判断管道是否已经命名
+      12         if(stat(path,&st) == 0){
+      13                 if(!S_ISFIFO(st.st_mode)){	//判断重名的文件是否为管道，不是管道返回错误
+      14                         fprintf(stderr,"该文件不是管道文件，请重命名!\n");
+      15                         exit(-1);
+      16                 }
+      17         }
+      18         //如果管道还不存在，创建管道
+      19         else if(mkfifo(path,0666) == -1){	//不要使用mkfifo()的EEXIST宏来判断管道文件是否存在
+      20                 perror("mkfifo error");		//当同名文件不是管道文件时也会出现EEXIST错误
+      21                 exit(-1);
+      22         }
+      23         pid_t pid;
+      24         int fd;
+      25         if((pid = fork()) == -1){
+      26                 perror("fork error");
+      27                 exit(-1);
+      28         }
+      29         if(pid ==0){
+      30                 //打开管道.子进程以写入方式打开
+      31                 fd = open(path,O_WRONLY);
+      32                 if(fd == -1){
+      33                         perror("open fifo error");
+      34                         exit(-1);
+      35                 }
+      36                 char buf[128]= "hello world!";
+      37                 write(fd,buf,sizeof(buf));
+      38         }else{
+      39                 fd = open(path,O_RDONLY);
+      40                 if(fd == -1){
+      41                         perror("open fifo error");
+      42                         return -1;
+      43                 }
+      44                 char buf[128];
+      45                 read(fd,buf,sizeof(buf));
+      46                 fprintf(stdout,"%s\n",buf);
+      47         }
+      48         close(fd);
+      49         return 0;
+      50 }
+     ```
+
+     
+
+   - #### 有名管道当阻塞方式+(只读、只写)打开时，open函数会阻塞直到其他进程通过另一种方式(前者只读后者只写，或者前者只写后者只读)打开，open阻塞才会消失。
+
+     #### 除此之外，当使用阻塞方式打开管道时，read、write系统调用均会阻塞，直到有数据读或写。
+
+     ```c
+       1 #include <stdio.h>
+       2 #include <unistd.h>
+       3 #include <stdlib.h>
+       4 #include <sys/stat.h>
+       5 #include <fcntl.h>
+       6 //验证以只读方式、阻塞形式打开管道时，会阻塞到其他进程写打开后才会打开管道
+           //该程序启动后会一直阻塞直到另一进程通过写方式打开
+       7 int main(){
+       8         mkfifo("./myfifo1",0666);
+       9         int fd = open("./myfifo1",O_RDONLY);
+      10         if(fd == -1)
+      11                 perror("open fifo error");
+      12         printf("管道打开成功, fd = %d\n",fd);
+      13         return 0;
+      14 }
+     ```
+
+     
+
+   - #### 管道打开的4种方式：
+
+     ###### 前两种方式上面介绍过，即阻塞模式下的只读、只写方式。
+
+     ###### 剩余的2中常用方式为非阻塞的只读、只写。
+
+     ###### 为什么不使用读写模式打开？因为如果一个进程使用读写模式打开，该进程写入管道内的数据会被自己读到，读到的数据会被覆盖，导致其他进程会读不到完整数据，降低了进程间通信的可靠性。
+
+     ```c
+     /************带阻塞的管道操作，都会等到其他进程以另外一种方式打开管道后才会停止阻塞********************/
+     //1、只读方式打开管道 myfifo
+     int fd = open("./myfifo",O_RDONLY);
+     //2、只写方式打开管道
+     int fd = open("./myfifo",O_WRONLY);
+     /************非阻塞的打开方式，只读模式与只写模式有所不同*******************************************/
+     //3、只读方式打开，open成功并立即返回，即使没有进程以写方式打开。
+     int fd = open("./myfifo",O_RDONLY | O_NONBLOCK);
+     //4、只写方式打开。如果已经有其他进程以只读方式打开，open调用成功并返回。
+     //但是，如果没有进程以读模式打开管道，open将调用失败，返回-1.
+     int fd = open("./myfifo",O_WRONLY | O_NONBLOCK);
+     //没有进程以读方式打开管道时的输出：
+     //open fifo error: No such device or address
+     ```
+
+     
+
+   - 
 
 3. ### 消息队列：
 

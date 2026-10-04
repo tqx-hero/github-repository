@@ -465,10 +465,182 @@
      //3、只读方式打开，open成功并立即返回，即使没有进程以写方式打开。
      int fd = open("./myfifo",O_RDONLY | O_NONBLOCK);
      //4、只写方式打开。如果已经有其他进程以只读方式打开，open调用成功并返回。
-     //但是，如果没有进程以读模式打开管道，open将调用失败，返回-1.
+     //但是，如果没有进程以读模式打开管道，open将调用失败，返回-1.目的就是为了防止非阻塞模式下持续写不读取导致内存溢出。
      int fd = open("./myfifo",O_WRONLY | O_NONBLOCK);
      //没有进程以读方式打开管道时的输出：
      //open fifo error: No such device or address
+     ```
+
+     
+
+   - #### 管道如果全部关闭写端，阻塞的读端就不在阻塞，会持续从管道读取数据，读取完数据后仍旧持续读取0字节数据。当写进程再次开启，读进程又恢复到阻塞状态。
+
+   - #### 如果管道全部关闭读端，写端进程再次写入数据时会被OS发出SIGPIPE信号，之后会被强制杀死。
+
+     ```c
+       1 #include <stdio.h>
+       2 #include <unistd.h>
+       3 #include <stdlib.h>
+       4 #include <sys/stat.h>
+       5 #include <fcntl.h>
+       6 #include <string.h>
+       7 //读端进程。
+       8 int main(){
+       9         mkfifo("./myfifo1",0666);
+      10         int fd = open("./myfifo1",O_RDONLY);
+      11         if(fd == -1){
+      12                 perror("open fifo error");
+      13                 return -1;
+      14         }
+      15         printf("管道打开成功, fd = %d\n",fd);
+      16         char buf[128];
+      17         while(1){
+      18                 bzero(buf,sizeof(buf));
+      19                 read(fd,buf,sizeof(buf));	//如果写端关闭，读端的read不再阻塞，会持续读
+      20                 fprintf(stdout,"[%s]\n",buf);
+      21         }
+      22         return 0;
+      23 }
+     ```
+
+     ```c
+       1 #include <stdio.h>
+       2 #include <unistd.h>
+       3 #include <stdlib.h>
+       4 #include <sys/stat.h>
+       5 #include <fcntl.h>
+       6 //验证以只写方式、阻塞形式打开管道时，会阻塞到其他进程读打开后才会打开管道
+       7 int main(){
+       8         mkfifo("./myfifo1",0666);
+       9         int fd = open("./myfifo1",O_WRONLY);
+      10         if(fd == -1){
+      11                 perror("open fifo error");
+      12                 return -1;
+      13         }
+      14         printf("管道打开成功, fd = %d\n",fd);
+      15         while(1){
+      16                 write(fd,"hello world",12);	//写端2秒一次写入管道，当读端关闭后，写端再次写入数据时被杀死。
+      17                 sleep(2);
+      18         }
+      19         return 0;
+      20 }
+     ```
+
+     
+
+   - ###### 综合(使用2个管道实现2个会话之间通信)：chat.c
+
+     ###### 注意：一定要在每个进程内部进行管道的打开，这样可避免死锁的产生。
+
+     ###### 			假如在fork()之前打开这两个管道，要注意按照资源(也就是管道)的顺序打开，否则会产生死锁。
+
+     ###### 			死锁的情况： 
+
+     ###### 		session1打开顺序为myfifo1只读,myfifo2只写,阻塞方式打开，进程会阻塞在打开myfifo1等待myfifo1的只写端的开启。
+
+     ###### 		session2打开myfifo2只读，myfifo1只写，进程会阻塞在myfifo2的open函数等待myfifo2的只写端打开，此时2个进程产生死锁。
+
+     ```c
+       1 #include <unistd.h>
+       2 #include <stdio.h>
+       3 #include <stdlib.h>
+       4 #include <string.h>
+       5 #include <sys/types.h>
+       6 #include <sys/stat.h>
+       7 #include <fcntl.h>
+       8 #include <sys/wait.h>
+       9 //定义需要开启的管道
+      10 #define BUF_SIZE 256
+      11 typedef struct {	//定义消息结构体，其中存放发送放的进程id与具体消息。
+      12         pid_t pid;
+      13         char buf[BUF_SIZE];
+      14 } message_t;
+      15 int main(int argc,char ** argv){
+      16         if(argc < 3){	//使用传参形式传入读、写通道
+      17                 fprintf(stderr,"参数必须要有读管道文件、写管道文件\n");
+      18                 exit(-1);
+      19         }
+      20         //判断管道是否存在
+      21         if(access(argv[1],F_OK) == -1 && mkfifo(argv[1],0644) == -1){
+      22                 //创建管道
+      23                 perror("mk fifo1 error");
+      24                 exit(-1);
+      25         }
+      26         if(access(argv[2],F_OK) == -1 && mkfifo(argv[2],0644) == -1){
+      27                 //创建管道
+      28                 perror("mk fifo2 error");
+      29                 exit(-1);
+      30         }
+      31         //打开文件描述符
+      32         int r_fd= -1,w_fd = -1;
+      33         ssize_t nbytes;
+      34         message_t msg;
+      35         //创建子进程，分别对管道进行读写
+      36         pid_t pid;
+      37         if((pid = fork()) == -1){
+      38                 perror("fork error");
+      39                 goto fail_ret;
+      40         }
+      41         //子进程负责读取管道
+      42         if(pid == 0){
+      43                 if((r_fd = open(argv[1],O_RDONLY)) == -1){	//argv[1]为读通道
+      44                         perror("open fifo1 error");
+      45                         goto fail_ret;
+      46                 }
+      47                 while(1){
+      48                         nbytes = read(r_fd,&msg,sizeof(message_t));
+      49                         if(nbytes == 0){
+      50                                 printf("对方已关闭对话\n");
+      51                                 break;
+      52                         }
+      53                         fprintf(stdout,"%d : %s\n",msg.pid,msg.buf);
+      54                 }
+      55                 close(r_fd);
+      56                 unlink(argv[1]);
+      57                 exit(0);
+      58         }else{
+      59                 if((w_fd = open(argv[2],O_WRONLY)) == -1){	//argv[2]为写通道
+      60                         perror("open fifo2 error");
+      61                         goto fail_ret;
+      62                 }
+      63                 //父进程负责写入管道
+      64                 msg.pid = getpid();
+      65                 while(1){
+      66                         scanf("%s",msg.buf);
+      67                         nbytes = write(w_fd,&msg,sizeof(message_t));
+      68                         //完善还需要注册SIGCHLD信号的处理事件，以免默认SIGIGN被忽略。
+      69                         printf("nbytes = %ld\n",nbytes);
+      70                         /*
+      71                         if(nbytes == -1){
+      72                                 perror("write error");
+      73                                 waitpid(pid,NULL,0);
+      74                                 break;
+      75                         }
+      76                         */
+      77                 }
+      78         }
+      79         close(w_fd);
+      80         unlink(argv[2]);
+      81         return 0;
+      82 fail_ret:
+      83         if(r_fd != -1){
+      84                 close(r_fd);
+      85                 unlink(argv[1]);
+      86         }
+      87         if(w_fd != -1){
+      88                 close(w_fd);
+      89                 unlink(argv[2]);
+      90         }
+      91         exit(-1);
+      92 }
+     ```
+
+     ###### 开启2个会话的指令分别为：
+
+     ```bash
+     #管道为半双工通信，所以需要使用2个管道。2个会话分别连接同2个管道，每个会话有2个进程，每个进程分别开启一个管道的读、写端
+     ./chat ./myfifo1 ./myfifo2	#开启第一个会话，该会话的读端为管道myfifo1，写端为myfifo2
+     ./chat ./myfifo2 ./myfifo1	#开启第二个会话，读端为myfifo2，写端为myfifo1
      ```
 
      

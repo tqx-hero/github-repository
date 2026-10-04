@@ -7,8 +7,14 @@
 int main(){
 	mkfifo("./myfifo1",0666);
 	int fd = open("./myfifo1",O_WRONLY);
-	if(fd == -1)
+	if(fd == -1){
 		perror("open fifo error");
+		return -1;
+	}
 	printf("管道打开成功, fd = %d\n",fd);
+	while(1){
+		write(fd,"hello world",12);
+		sleep(2);
+	}
 	return 0;
 }

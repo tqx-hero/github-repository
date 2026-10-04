@@ -1369,4 +1369,41 @@
 
     
 
-19. 
+19. ##### 测试文件是否存在access(man 2 access)：
+
+    ```c
+    #include <unistd.h>
+    /**
+    	pathname: 文件的路径
+    	mode: 测试文件的权限。
+    		F_OK：文件是否存在。如果为链接文件，对其进行解引用
+    		R_OK: 文件是否存在且拥有读权限
+    		W_OK: 文件是否存在且拥有写权限
+    		X_OK: 文件是否存在且拥有可执行权限
+    	return:
+    		0 : 拥有相应的权限，F_OK时文件存在，返回0
+    		-1: 没有相应权限，或者文件不存在，错误码存储到errno
+    */
+    int access(const char *pathname, int mode);
+    ```
+
+    ###### demo:测试tst.txt是否存在
+
+    ```c
+      1 #include <unistd.h>
+      2 #include <stdio.h>
+      3 //access()用于判断文件是否存在
+      4 int main(){
+      5         int flag = access("./tst.txt",F_OK);
+      6         if(flag == -1){
+      7                 perror("access error");
+      8                 return -1;
+      9         }
+     10         printf("文件存在\n");
+     11         return 0;
+     12 }
+    ```
+
+    
+
+20. 

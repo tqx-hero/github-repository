@@ -1406,4 +1406,111 @@
 
     
 
-20. 
+20. ##### 文件描述符的复制dup(man 2 dup)：
+
+    ```c
+    #include <unistd.h>
+    /**
+    	复制旧的文件描述符，复制到可用的最小的文件描述符，并返回
+    	oldfd: 要复制的文件描述符
+    	return:
+    		-1 : 复制失败，错误码保存在errno
+    		>0 : 复制成功，返回复制好的文件描述符
+    */
+    int dup(int oldfd);
+    /**
+    	指明要复制到哪个文件描述符
+    	oldfd: 要复制的文件描述符
+    	newfd: 要复制到哪个具体的文件描述符
+    	return:
+    		-1 : 复制失败，错误码保存在errno
+    		>0 : 复制成功，返回复制好的文件描述符
+    */
+    int dup2(int oldfd, int newfd);
+    ```
+
+    ###### demo:复制同目录下dup.txt的fd，先以oldfd写入消息，再以newfd读出消息，最后关闭这两个fd
+
+    ```c
+      1 #include <unistd.h>
+      2 #include <stdio.h>
+      3 #include <stdlib.h>
+      4 #include <fcntl.h>
+      5 #include <string.h>
+      6 //使用dup()函数复制文件描述符
+      7 int main(){
+      8         int fd = open("./dup.txt",O_CREAT | O_RDWR,0644);
+      9         if(fd == -1){
+     10                 perror("open file error");
+     11                 exit(-1);
+     12         }
+     13         printf("请输入要写入的文件内容: ");
+     14         fflush(stdout);
+     15         char buf[128];
+     16         fgets(buf,sizeof(buf),stdin); //从标准输入读取输入内容到buf
+     17         write(fd,buf,strlen(buf)+1);
+     18         int newfd = dup(fd);	//复制文件描述符
+     19         lseek(fd,0,SEEK_SET);	//将读取指针移动到文件开头
+     20         char r_buf[128];
+     21         read(newfd,r_buf,sizeof(r_buf));
+     22         printf("写入文件的内容 : %s\n",r_buf);	//也可用fputs()进行输出
+     23         close(fd);
+     24         close(newfd);
+     25         return 0;
+     26 }
+    ```
+
+    ###### demo2:使用printf()函数写入到屏幕的内容重定向到a.out
+
+    ###### 1、使用dup()函数，先关闭标准输出1，在调用dup()，dup取最小可用的fd，即可将1与a.out文件关联到一起
+
+    ```c
+      1 #include <stdio.h>
+      2 #include <unistd.h>
+      3 #include <stdlib.h>
+      4 #include <fcntl.h>
+      5 //将标准输出文件绑定a.out的文件描述符
+      6 //使用printf()进行输出时,底层调用的write(1,"",..)会将内容重定向输出到a.out文件
+      7 int main(){
+      8         int fd = open("./a.out",O_CREAT | O_RDWR, 0644);
+      9         if(fd == -1){
+     10                 perror("open fd error");
+     11                 exit(-1);
+     12         }
+     13         close(1);       //关闭标准输出
+     14         int newfd = dup(fd);    //复制a.out的fd,dup()选取的fd是最小可用的fd，关闭1之后，newfd必为1
+     15         char buf[128];
+     16         fgets(buf,sizeof(buf),stdin);
+     17         printf("输入的内容 : %s\n",buf);
+     18         close(fd);
+     19         return 0;
+     20 }
+    ```
+
+    ###### 2、也可以使用dup2()，直接将a.out的fd与1绑定到一起，而不需要事先关闭1。
+
+    ```c
+      1 #include <stdio.h>
+      2 #include <unistd.h>
+      3 #include <stdlib.h>
+      4 #include <fcntl.h>
+      5 //将标准输出文件绑定a.out的文件描述符
+      6 //使用printf()进行输出时,底层调用的write(1,"",..)会将内容重定向输出到a.out文件
+      7 int main(){
+      8         int fd = open("./a2.out",O_CREAT | O_RDWR, 0644);
+      9         if(fd == -1){
+     10                 perror("open fd error");
+     11                 exit(-1);
+     12         }
+     13         int newfd = dup2(fd,1); //复制a.out的fd,dup()选取的fd是最小可用的fd，关闭1之后，newfd必为1
+     14         char buf[128];
+     15         fgets(buf,sizeof(buf),stdin);
+     16         printf("输入的内容 : %s\n",buf);
+     17         close(fd);
+     18         return 0;
+     19 }
+    ```
+
+    
+
+21. 

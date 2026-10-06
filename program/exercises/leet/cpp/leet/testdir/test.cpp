@@ -1,92 +1,108 @@
 /**
- * 1190. 反转每对括号间的子串
-中等
+ * 414. 第三大的数
+简单
 相关标签
 premium lock icon
 相关企业
-提示
-给出一个字符串 s（仅含有小写英文字母和括号）。
+给定一个整数数组 nums。
 
-请你按照从括号内到外的顺序，逐层反转每对匹配括号中的字符串，并返回最终的结果。
-
-注意，您的结果中 不应 包含任何括号。
+返回此数组中 第三大的数 。如果不存在，则返回数组中 最大 的数。
 
 
 
 示例 1：
 
-输入：s = "(abcd)"
-输出："dcba"
+输入：[3, 2, 1]
+输出：1
+解释：第三大的数是 1 。
 示例 2：
 
-输入：s = "(u(love)i)"
-输出："iloveu"
-解释：先反转子字符串 "love" ，然后反转整个字符串。
+输入：[1, 2]
+输出：2
+解释：第三大的数不存在, 所以返回最大的数 2 。
 示例 3：
 
-输入：s = "(ed(et(oc))el)"
-输出："leetcode"
-解释：先反转子字符串 "oc" ，接着反转 "etco" ，然后反转整个字符串。
+输入：[2, 2, 3, 1]
+输出：1
+解释：注意，要求返回第三大的数，是指在所有不同数字中排第三大的数。
+此例中存在两个值为 2 的数，它们都排第二。在所有不同数字中排第三大的数为 1 。
 
 
 提示：
 
-1 <= s.length <= 2000
-s 中只有小写英文字母和括号
-题目测试用例确保所有括号都是成对出现的
+1 <= nums.length <= 104
+-231 <= nums[i] <= 231 - 1
+
+
+进阶：你能设计一个时间复杂度 O(n) 的解决方案吗？
  */
-#include <string>
+#include <vector>
 #include <iostream>
-#include <deque>
-#include <stack>
 #include <algorithm>
+#include <array>
+#include <unordered_set>
 using namespace std;
 
 class Solution
 {
-public:
-    string reverseParentheses(string s)
+    int quick_sort(vector<int> &true_nums, int left, int right, int target_index)
     {
-        string ret;
-        deque<string> str_stk;
-        int i, size = static_cast<int>(s.size()), left_cnt = 0;
-        for (i = 0; i < size; ++i)
+        if (left == right)
+            return true_nums[left];
+        // 选主元
+        array<int, 3> arr{left, left + (right - left) / 2, right};
+        sort(arr.begin(), arr.end(), [&true_nums](const int x, const int y)
+             { return true_nums[x] > true_nums[y]; });
+        // 主元与第一个位置交换
+        swap(true_nums[arr[1]], true_nums[left]);
+        int size = static_cast<int>(true_nums.size()), tleft, tright, main_num = true_nums[left];
+        for (tleft = left + 1, tright = size - 1; tleft <= tright; ++tleft, --tright)
         {
-            if (s[i] == ')')
-            {
-                // 统计，弹栈
-                string temp_str;
-                do
-                {
-                    string &str = str_stk.back();
-                    if (str == "(")
-                    {
-                        str_stk.pop_back();
-                        break;
-                    }
-                    temp_str = str + temp_str;
-                    str_stk.pop_back();
-                } while (true);
-                reverse(temp_str.begin(), temp_str.end());
-                str_stk.push_back(temp_str);
-                continue;
-            }
-            // if(s[i] == '(')
-            //   left_cnt++;
-            str_stk.push_back(string(1,s[i]));
+            for (; tleft <= tright && true_nums[tleft] > main_num; ++tleft)
+                ;
+            for (; tleft <= tright && true_nums[tright] < main_num; --tright)
+                ;
+            if (tleft > tright)
+                break;
+            swap(true_nums[tleft], true_nums[tright]);
         }
-        for (auto &str : str_stk)
-            ret += str;
-        return ret;
+        // 放置主元位置
+        swap(true_nums[left], true_nums[tright]);
+        // 主元位置在tright，判断tright与target_index的大小
+        int sub = target_index - tright;
+        if (sub == 0)
+            return true_nums[tright];
+        // >0,要从tright后面区间查找
+        if (sub > 0)
+            return quick_sort(true_nums, tright + 1, right, target_index);
+        else
+            return quick_sort(true_nums, left, tright - 1, target_index);
+    }
+
+public:
+    int thirdMax(vector<int> &nums)
+    {
+        // 剪枝
+        unordered_set<int> hash_set(nums.begin(), nums.end());
+        vector<int> true_nums(hash_set.begin(), hash_set.end());
+        // 按照快排的思想，运用霍尔法选取主元，进行快排(按照由大到小逆序)
+        // 每次快排后比较主元位置。
+        // 如果主元位置是第三个，主元就是要找的数
+        // 主元位置小于3，从主元后面的区间找第三个
+        // 主元位置大于3，从主元前面区间找
+        int size = static_cast<int>(true_nums.size());
+        return size < 3 ? size == 1 ? true_nums[0] : max(true_nums[0], true_nums[1])
+                        : quick_sort(true_nums, 0, size - 1, 2);
     }
 };
 
 // int main()
 // {
-//     // string s = "(abcd)";
-//     // string s = "(u(love)i)";
-//     string s = "(ed(et(oc))el)";
+//     // vector<int> nums{3, 2, 1};
+//     // vector<int> nums{2, 1};
+//     // vector<int> nums{2, 2, 3, 1, 4};
+//     vector<int> nums{1, 2, 2, 5, 3, 5};
 //     Solution sl;
-//     cout << sl.reverseParentheses(s) << endl;
+//     cout << sl.thirdMax(nums) << endl;
 //     return 0;
 // }

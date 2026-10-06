@@ -1419,7 +1419,7 @@
     */
     int dup(int oldfd);
     /**
-    	指明要复制到哪个文件描述符
+    	指明要复制到哪个文件描述符.如果newfd已经开启，会先close(newfd)，再绑定。
     	oldfd: 要复制的文件描述符
     	newfd: 要复制到哪个具体的文件描述符
     	return:
@@ -1511,6 +1511,102 @@
      19 }
     ```
 
+    ###### 3、使用dup2重定向标准输出，将ls命令的输出内容打印到a.txt日志文件：
+
+    ```c
+      1 #include <unistd.h>
+      2 #include <stdio.h>
+      3 #include <stdlib.h>
+      4 #include <string.h>
+      5 #include <fcntl.h>
+      6 #include <sys/wait.h>
+      7 //使用ls
+      8 int main(){
+      9         pid_t pid;
+     10         if((pid = fork()) == -1){
+     11                 perror("fork error");
+     12                 exit(-1);
+     13         }
+     14         if(pid){
+     15                 waitpid(-1,NULL,0); //父进程等待子进程退出，回收PCB
+     16                 return 0;
+     17         }
+     18         int fd = open("./a.txt",O_CREAT | O_WRONLY | O_TRUNC,0644); //打开文件，生成fd
+     19         if(fd == -1){
+     20                 perror("open a.out error");
+     21                 exit(-1);
+     22         }
+     23         dup2(fd,STDOUT_FILENO); //将文件描述符重定向绑定到标准输出1
+     24         close(fd);	//关闭原文件描述符
+     25         char * argv[] = {"ls","-lh",NULL};	//当前stdout绑定到了a.txt,可利用这点直接执行ls命令，内容会重定向输出到a.txt
+     26         execvp("ls",argv);
+     27         perror("execvp error");
+     28         exit(-1);
+     29 }
+    ```
+
+    ###### 执行后a.txt：
+
+    ```bash
+    tqx@linux-ubuntu$ cat a.txt
+    total 44K
+    -rw-r--r-- 1 tqx tqx   0 Oct  6 11:02 a.txt
+    -rwxrwxr-x 1 tqx tqx 17K Oct  6 10:49 ls
+    -rw-rw-r-- 1 tqx tqx 520 Oct  6 11:02 ls.c
+    -rwxrwxr-x 1 tqx tqx 17K Oct  6 11:02 myls
+    ```
+    
+    
+    
+21. ##### gets/fgets:
+
+    ```c
+    #include <stdio.h>
+    /**
+    	从文件流stream获取一个字符，返回的一个无符号整型转换成int，如果到文件末尾，输出EOF
+    	stream:	文件流。
+    */
+    int fgetc(FILE *stream);
+    /**
+    	从stream流中读取最多size-1个字符，放到字符串s中，并在最后添加 '\0'。
+    	如果读取到结尾或者换行'\n'，会在读取这个字符后面追加'\0'构成字符串。
+    	s: 字符串要读到的地址。
+    	size:字符串的长度，最多能读取到size-1个字节
+    	stream: 文件流
+    	return:
+    		NULL: 出现错误，或者文件已经读到结尾。
+    */
+    char *fgets(char *s, int size, FILE *stream);
+    //等价于getc
+    int getc(FILE *stream);
+    // getchar() is equivalent to getc(stdin).
+    //等价于fgetc(stdin)
+    int getchar(void);
+    
+    int ungetc(int c, FILE *stream);
+    ```
+
     
 
-21. 
+22. ##### puts/fputs,往文件流中放入字符、字符串:
+
+    ```c
+    #include <stdio.h>
+    /**
+    	c: 要放入的字符值
+    	stream: 要放入的文件流
+    */
+    int fputc(int c, FILE *stream);
+    
+    int fputs(const char *s, FILE *stream);
+    
+    int putc(int c, FILE *stream);
+    
+    int putchar(int c);
+    
+    int puts(const char *s);
+    ```
+
+    
+
+23. 

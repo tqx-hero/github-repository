@@ -1,0 +1,5 @@
+total 44K
+-rw-r--r-- 1 tqx tqx   0 Oct  6 11:02 a.txt
+-rwxrwxr-x 1 tqx tqx 17K Oct  6 10:49 ls
+-rw-rw-r-- 1 tqx tqx 520 Oct  6 11:02 ls.c
+-rwxrwxr-x 1 tqx tqx 17K Oct  6 11:02 myls

@@ -33,8 +33,9 @@ nums 中的每个元素出现 一次 或 两次
  */
 #include <vector>
 #include <iostream>
+#include <algorithm>
 using namespace std;
-//TODO
+// TODO
 class Solution
 {
 public:
@@ -44,13 +45,47 @@ public:
         int i, size = static_cast<int>(nums.size());
         for (i = 0; i < size; ++i)
         {
-            int num = nums[i];
-            // 开始将num放到数组的对应下标
+            int num = nums[i],j=i;
+            if (num == 0 || num % size == i)
+                continue;
+            //  开始将num放到数组的对应下标
+            // 当num取模size的下标所在值不为0时，表示这个坑还没被填
+            while (true)
+            {
+                // 将j的下标值，也就是num先前所在的下标值设置为0
+                if(nums[j] % size != j)
+                    nums[j] = 0;
+                j = num % size;
+                // 拿出要放入的下标所在值
+                int temp = nums[j];
+                // 如果temp与num相同，说明已经有num放入
+                if (temp == num)
+                {
+                    ret.push_back(num);
+                    break;
+                }
+                // 将num放入这个下标
+                nums[j] = num;
+                if (temp == 0)
+                    // 如果取出的值为0，说明这个坑之前已经拿出该值，i++
+                    break;
+                // 如果temp不为0且不等于num，继续安置temp
+                num = temp;
+            }
         }
+        return ret;
     }
 };
 
 // int main()
 // {
+//     // vector<int> nums{4, 3, 2, 7, 8, 2, 3, 1};
+//     // vector<int> nums{1,1,2};
+//     vector<int> nums{1};
+//     Solution sl;
+//     const auto &vc = sl.findDuplicates(nums);
+//     for_each(vc.begin(), vc.end(), [](const int x)
+//              { cout << x << " "; });
+//     cout << endl;
 //     return 0;
 // }

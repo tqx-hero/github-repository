@@ -1,58 +1,73 @@
 /**
- * 441. 排列硬币
+ * 492. 构造矩形
 简单
 相关标签
 premium lock icon
 相关企业
-你总共有 n 枚硬币，并计划将它们按阶梯状排列。对于一个由 k 行组成的阶梯，其第 i 行必须正好有 i 枚硬币。阶梯的最后一行 可能 是不完整的。
+提示
+作为一位web开发者， 懂得怎样去规划一个页面的尺寸是很重要的。 所以，现给定一个具体的矩形页面面积，你的任务是设计一个长度为 L 和宽度为 W 且满足以下要求的矩形的页面。要求：
 
-给你一个数字 n ，计算并返回可形成 完整阶梯行 的总行数。
-
-
-
-示例 1：
-
-
-输入：n = 5
-输出：2
-解释：因为第三行不完整，所以返回 2 。
-示例 2：
+你设计的矩形页面必须等于给定的目标面积。
+宽度 W 不应大于长度 L ，换言之，要求 L >= W 。
+长度 L 和宽度 W 之间的差距应当尽可能小。
+返回一个 数组 [L, W]，其中 L 和 W 是你按照顺序设计的网页的长度和宽度。
 
 
-输入：n = 8
-输出：3
-解释：因为第四行不完整，所以返回 3 。
+示例1：
+
+输入: 4
+输出: [2, 2]
+解释: 目标面积是 4， 所有可能的构造方案有 [1,4], [2,2], [4,1]。
+但是根据要求2，[1,4] 不符合要求; 根据要求3，[2,2] 比 [4,1] 更能符合要求. 所以输出长度 L 为 2， 宽度 W 为 2。
+示例 2:
+
+输入: area = 37
+输出: [37,1]
+示例 3:
+
+输入: area = 122122
+输出: [427,286]
 
 
-提示：
+提示:
 
-1 <= n <= 231 - 1
+1 <= area <= 107
  */
-#include <iostream>
+#include <vector>
 #include <cmath>
+#include <algorithm>
+#include <iostream>
 using namespace std;
 
 class Solution
 {
 public:
-    int arrangeCoins(int n)
+    vector<int> constructRectangle(int area)
     {
-        long long total = (long long)n << 1;
-        long long  squart_factor = static_cast<long long>(sqrt(total));
-        long long sub = squart_factor * (squart_factor + 1) - total;
-        if (sub <= 0)
-            return squart_factor;
-        if (squart_factor * (squart_factor - 1) >= n)
-            return squart_factor - 1;
-        return squart_factor;
+        vector<int> ret(2, 0);
+        // 从half开始倒序遍历找到最大的宽
+        int half = static_cast<int>(sqrt(area));
+        for (int k = half; k > 0; --k)
+        {
+            double width = area * 1.0 / k;
+            if (width == static_cast<int>(width))
+            {
+                ret[0] = static_cast<int>(width);
+                ret[1] = k;
+                break;
+            }
+        }
+        return ret;
     }
 };
 
 // int main()
 // {
-//     // int n = 4;
-//     int n = 1804289383;
+//     int area = 122122;
 //     Solution sl;
-//     cout << sl.arrangeCoins(n) << endl;
+//     const auto &vc = sl.constructRectangle(area);
+//     for_each(vc.begin(), vc.end(), [](const int x)
+//              { cout << x << " "; });
+//     cout << endl;
 //     return 0;
 // }

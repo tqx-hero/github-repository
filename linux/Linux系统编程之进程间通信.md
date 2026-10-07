@@ -649,6 +649,247 @@
 
 3. ### 消息队列：
 
+   - ##### 生成消息队列的唯一标识key(man 3 ftok):
+
+     ```c
+     #include <sys/ipc.h>
+     /**
+     	利用文件名与签名生成消息队列的唯一标识key
+     	pathname: 文件名称，文件必须存在
+     	proj_id: 签名
+     	return:
+     		-1: 生成失败，错误码errno
+     		非-1：成功，返回唯一标识(标识为有符号32位整数)
+     */
+     key_t ftok(const char *pathname, int proj_id);
+     typedef int key_t;
+     ```
+
+     ###### demo:
+
+     ```c
+     #include <sys/ipc.h>
+     #include <stdio.h>
+     
+     int main(){
+             key_t kt = ftok("./",186);
+             if(kt == -1){
+                     perror("ftok error");
+                     return -1;
+             }
+             printf("kt = %d\n",kt);
+             return 0;
+     }
+     ```
+
+     
+
+   - ##### 创建消息队列(man 2 msgget):
+
+     ```c
+     #include <sys/msg.h>
+     /**
+     	创建消息队列
+     	key: ftok()生成的唯一标识
+     	msgflag: 消息队列的权限
+     		IPC_CREAT: 当消息队列不存在时会进行创建。
+     			如果 | IPC_EXCL,当消息队列已经存在时会报错，没有位或，消息队列存在，则会忽略IPC_CREAT。
+     		IPC_EXCL: 检测消息队列是否存在。
+     		
+     		除了添加IPC_CREAT，必须给消息队列添加权限，(与open系统调用的权限相同，但是没有可执行权限，所以可以位或读写权限),例如： IPC_CREAT | 0666，标识该消息队列对所有用户都是读写权限，不存在则创建，存在则打开。
+     		
+     	return:
+     		-1: 创建失败。
+     		非负数: 创建成功，返回值为消息队列的标识。
+     */
+     int msgget(key_t key, int msgflg);
+     ```
+
+     ###### demo:
+
+     ```c
+     #include <sys/ipc.h>
+     #include <stdio.h>
+     #include <sys/msg.h>
+     //创建消息队列
+     int main(){
+             key_t kt = ftok("./",186);
+             if(kt == -1){
+                     perror("ftok error");
+                     return -1;
+             }
+             printf("kt = %d\n",kt);
+             int msg_id = msgget(kt,IPC_CREAT | 0666);
+             if(msg_id == -1){
+                     perror("msgget error");
+                     return -1;
+             }
+             printf("消息队列的id = %d\n",msg_id);
+             return 0;
+     }
+     ```
+
+     ###### 结果：
+
+     ```bash
+     tqx@LAPTOP-G3KT1I3B$ ./msgget
+     kt = -1171240844
+     消息队列的id = 0
+     tqx@LAPTOP-G3KT1I3B$ ipcs -q
+     
+     ------ Message Queues --------
+     key        msqid      owner      perms      used-bytes   messages
+     0xba304874 0          tqx        666        0            0
+     ```
+
+     
+
+   - ##### 发送消息：
+
+     ```c
+     #include <sys/msg.h>
+     /**
+     	msgid: 消息队列id
+     	msgp: 要发送的消息结构体地址。
+     	msgsz: 发送的消息体大小。注意，该大小不包括消息结构体的第一个字段mtype
+     	msgflg: 当队列已满时如何处理
+     	return:
+     		-1: 发送失败
+     		0: 发送成功
+     */
+     int msgsnd(int msqid, const void* msgp, size_t msgsz,int msgflg);
+     
+     //消息结构体命名格式：
+     struct my_message{
+       	long int mtype; //消息类型，值必须大于0，用于msgrcv()读取时指定读取类型。必有选项。
+         char buf[n]; 	//消息体。可根据自身需求定义为指针、数组等
+     };
+     ```
+
+     ###### demo:将hello world打包发送到消息队列的链表节点中
+
+     ```c
+       1 #include <sys/msg.h>
+       2 #include <stdio.h>
+       3 #include <string.h>
+       4 #include <unistd.h>
+       5 #include <stdlib.h>
+       6 //msgsnd()函数发送消息
+       7
+       8 typedef struct {
+       9         long int mtype;	//长整型，用于标识读取消息时的标志，不可缺
+      10         char buf[128];	//消息体
+      11 } msg_t;
+      12
+      13 int main(){
+      14         key_t kt = ftok("./",186);
+      15         if(kt == -1){
+      16                 perror("ftok error");
+      17                 exit(-1);
+      18         }
+      19         int msg_id = msgget(kt,IPC_CREAT | 0666);
+      20         if(msg_id == -1){
+      21                 perror("msgget error");
+      22                 exit(-1);
+      23         }
+      24         msg_t message;
+      25         message.mtype = 1;
+      26         sprintf(message.buf,"%s","hello world!");
+      27         fprintf(stdout,"要发送的消息 = %s\n",message.buf);
+      28         if(msgsnd(msg_id,&message,sizeof(message) - sizeof(message.mtype),IPC_NOWAIT) == -1){
+      29                 perror("msgsnd msg error");
+      30                 exit(-1);
+      31         }
+      32         return 0;
+      33 }
+     ```
+
+     ###### 发送到消息队列后：
+
+     ```bash
+     tqx@LAPTOP-G3KT1I3B$ ipcs -q
+     
+     ------ Message Queues --------
+     key        msqid      owner      perms      used-bytes   messages
+     0xba304874 2          tqx        666        128          1
+     ```
+
+     
+
+   - ##### 接收消息：
+
+     ```c
+     #include <sys/msg.h>
+     /**
+     	msqid: 消息队列id
+     	msgp: 把消息读到的内存地址
+     	msgsz: 消息体大小，不包括msg_type
+     	msgtyp: 要读取的消息体的类型，消息体结构体的第一个字段。
+     	msgflg: 当队列已满时如何处理
+     	return :
+     		-1: 接收失败，errno为错误码
+     		非负数：
+     			拷贝到msgp内存的真实字节数
+     */
+     ssize_t msgrcv(int msqid, void msgp[.msgsz], size_t msgsz, long msgtyp,
+                    int msgflg);
+     ```
+
+     ###### demo:读取上述msgsnd队列中消息体数据
+
+     ```c
+       1 #include <sys/msg.h>
+       2 #include <stdio.h>
+       3 #include <string.h>
+       4 #include <unistd.h>
+       5 #include <stdlib.h>
+       6 //msgrcv()函数接收消息
+       7
+       8 typedef struct {
+       9         long int mtype;
+      10         char buf[128];
+      11 } msg_t;
+      12
+      13 int main(){
+      14         key_t kt = ftok("./",186);
+      15         if(kt == -1){
+      16                 perror("ftok error");
+      17                 exit(-1);
+      18         }
+      19         int msg_id = msgget(kt,IPC_CREAT | 0666);
+      20         if(msg_id == -1){
+      21                 perror("msgget error");
+      22                 exit(-1);
+      23         }
+      24         msg_t message;
+      25         if(msgrcv(msg_id,&message,sizeof(message) - sizeof(message.mtype),1,IPC_NOWAIT) == -1){
+      26                 perror("msgsnd msg error");
+      27                 exit(-1);
+      28         }
+      29         fprintf(stdout,"接收到的数据类型 = %ld\n",message.mtype);
+      30         fprintf(stdout,"接收到的数据 = %s\n",message.buf);
+      31         return 0;
+      32 }
+     ```
+
+     ###### 从消息队列读取数据后：
+
+     ```bash
+     tqx@LAPTOP-G3KT1I3B$ ./msgrcv
+     接收到的数据类型 = 1
+     接收到的数据 = hello world!
+     
+     tqx@LAPTOP-G3KT1I3B$ ipcs -q
+     
+     ------ Message Queues --------
+     key        msqid      owner      perms      used-bytes   messages
+     0xba304874 2          tqx        666        0            0
+     ```
+
+     
+
+   - 
+
 4. ### mmap：
 
 5. ### 共享内存：

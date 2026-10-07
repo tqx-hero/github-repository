@@ -987,4 +987,57 @@
 
     
 
-53. 
+53. ##### 显示/删除进程通信的设施(共享内存、消息队列、信号量数组)信息：
+
+    ```bash
+    ipcs [options]	#显示进程通信设施信息
+    options:
+    	-q: 显示消息队列
+    	-m: 共享内存
+    	-s: 信号量集合
+    	-a: 以上三项
+    ipcrm [shm|msg|sem] ID	#删除选项
+    ipcrm [options]
+    -a: --all删除所有资源
+    -M: --shmem-key shmkey,删除某个key的共享内存
+    -Q: --queue-key msgkey,删除某个key的消息队列
+    -S: --semaphore-key semkey,删除某个key的信号量
+    -m: --shmem-id shmid,以id为参数删除共享内存
+    -q: --queue-id msgid,以id为参数删除消息队列
+    -s: --semaphore-id semid,以id为参数删除信号量
+    ```
+
+    ###### demo:
+
+    ```bash
+    tqx@LAPTOP-G3KT1I3B$ ipcs -q
+    
+    ------ Message Queues --------
+    key        msqid      owner      perms      used-bytes   messages
+    0xba304874 0          tqx        666        0            0
+    
+    tqx@LAPTOP-G3KT1I3B$ ipcrm -q 0	#删除id为0的消息队列
+    tqx@LAPTOP-G3KT1I3B$ ipcs -q
+    
+    ------ Message Queues --------
+    key        msqid      owner      perms      used-bytes   messages
+    ```
+
+    ```bash
+    tqx@LAPTOP-G3KT1I3B$ ipcs -q
+    
+    ------ Message Queues --------
+    key        msqid      owner      perms      used-bytes   messages
+    0xba304874 1          tqx        666        0            0
+    
+    tqx@LAPTOP-G3KT1I3B$ ipcrm -Q 0xba304874	#以key为参数删除消息队列
+    tqx@LAPTOP-G3KT1I3B$ ipcs -q
+    
+    ------ Message Queues --------
+    key        msqid      owner      perms      used-bytes   messages
+    
+    ```
+
+    
+
+54. 

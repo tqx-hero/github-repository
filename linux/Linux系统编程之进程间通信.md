@@ -753,6 +753,8 @@
      	msgp: 要发送的消息结构体地址。
      	msgsz: 发送的消息体大小。注意，该大小不包括消息结构体的第一个字段mtype
      	msgflg: 当队列已满时如何处理
+     		0：阻塞直到满足条件
+     		IPC_NOWAIT： 不阻塞直接返回。
      	return:
      		-1: 发送失败
      		0: 发送成功
@@ -762,11 +764,12 @@
      //消息结构体命名格式：
      struct my_message{
        	long int mtype; //消息类型，值必须大于0，用于msgrcv()读取时指定读取类型。必有选项。
-         char buf[n]; 	//消息体。可根据自身需求定义为指针、数组等
+         char buf[n]; 	//消息体。可根据自身需求定义为指针、数组等多项内容。
+         ...;			
      };
      ```
 
-     ###### demo:将hello world打包发送到消息队列的链表节点中
+     ###### demo1:将hello world打包发送到消息队列的链表节点中
 
      ```c
        1 #include <sys/msg.h>
@@ -825,7 +828,14 @@
      	msgp: 把消息读到的内存地址
      	msgsz: 消息体大小，不包括msg_type
      	msgtyp: 要读取的消息体的类型，消息体结构体的第一个字段。
-     	msgflg: 当队列已满时如何处理
+     		 =0: 读取队列的第一个消息
+     		 >0: 读取这个类型对应的消息
+     		 <0: 读取类型小于或等于该绝对值的消息。若有若干个消息，读取类型值最小的那条。
+     	msgflg: 读取队列时的行为
+     		0：队列为空时阻塞直到接收到消息
+     		IPC_NOWAIT： 不阻塞直接返回。没收到消息直接返回-1，errno = ENOMSG
+     		MSG_NOERROR: 如果消息本身字节数比要放入结构体msgp的容量更大，则会截断消息装满msgp最大容量，不通知消息发送进程。
+     		
      	return :
      		-1: 接收失败，errno为错误码
      		非负数：
@@ -835,7 +845,7 @@
                     int msgflg);
      ```
 
-     ###### demo:读取上述msgsnd队列中消息体数据
+     ###### demo1:读取上述msgsnd队列中消息体数据
 
      ```c
        1 #include <sys/msg.h>
@@ -884,6 +894,119 @@
      ------ Message Queues --------
      key        msqid      owner      perms      used-bytes   messages
      0xba304874 2          tqx        666        0            0
+     ```
+
+     ###### demo2:定义消息结构体，cmd输入参数指定要发送接收的消息类型
+
+     ###### 消息结构体 msg_t.h:
+
+     ```c
+       1 #ifndef __MSG_T_H
+       2 #define __MSG_T_H
+       3 //定义消息结构体
+       4 typedef struct{
+       5         long int mtype; //消息类型
+       6         pid_t pid;      //发送方进程ID
+       7         char msg_buf[128]; //消息内容
+       8 }msg_t;
+       9
+      10 #endif
+     ```
+
+     ###### 发送消息 msgsnd.c:
+
+     ```c
+       1 #include <stdio.h>
+       2 #include <sys/msg.h>
+       3 #include <stdlib.h>
+       4 #include <unistd.h>
+       5 #include "msg_t.h"
+       6 //msgsnd()发送消息
+       7 //argv[1]为要发送的消息类型
+       8 int main(int argc,char** argv){
+       9         if(argc < 2){
+      10                 fprintf(stderr,"请输入发送消息的类型\n");
+      11                 exit(-1);
+      12         }
+      13         //生成消息队列的key
+      14         key_t kt = ftok("./",1);
+      15         if(kt == -1){
+      16                 perror("ftok error");
+      17                 exit(-1);
+      18         }
+      19         char* kptr = (char*) &kt;
+      20         fprintf(stdout,"消息队列的key = %.2x%.2x%.2x%.2x\n",kptr[3],kptr[2],kptr[1],kptr[0]);//小端序，字节序为高高低低
+      21         //创建/获取消息队列id
+      22         int msg_id = msgget(kt,IPC_CREAT | 0666);
+      23         if(msg_id == -1){
+      24                 perror("msgget error");
+      25                 exit(-1);
+      26         }
+      27         printf("消息队列ID = %d\n",msg_id);
+      28         msg_t msg;
+      29         msg.pid = getpid();	//填入进程ID
+      30         msg.mtype = atol(argv[1]); //消息类型字符串转化为long int整型
+      31         fprintf(stdout,"请输入要发送的消息: ");
+      32         fflush(stdout);
+      33         fgets(msg.msg_buf,sizeof(msg.msg_buf),stdin);
+      34         if(msgsnd(msg_id,&msg,sizeof(msg) - sizeof(msg.mtype),IPC_NOWAIT) == -1){
+      35                 perror("msgsnd error");
+      36                 exit(-1);
+      37         }
+      38         fprintf(stdout,"消息发送成功\n");
+      39         return 0;
+      40 }
+     ```
+
+     ###### 接收消息 msgrcv.c:
+
+     ```c
+       1 #include <unistd.h>
+       2 #include <sys/msg.h>
+       3 #include <stdio.h>
+       4 #include <stdlib.h>
+       5 #include "msg_t.h"
+       6 #include <errno.h>
+       7 //msgrcv()接收消息
+       8 //argv[1]为要接收的消息类型:
+       9 // argv[1] == 0 : 无条件接收消息队列的第一条消息
+      10 //argv[1] > 0 : 接收msg_t.mtype ==  argv[1]的消息
+      11 //argv[1] < 0 : 接收满足 msg_t.mtype <= |argv[1]|所有消息中mtype最小的那一条
+      12 int main(int argc,char** argv){
+      13         if(argc < 2){
+      14                 fprintf(stderr,"请输入用于接收的消息类型\n");
+      15                 exit(-1);
+      16         }
+      17         key_t kt;
+      18         int msg_id;
+      19         ssize_t nbytes;
+      20         //同样需要使用ftok()、msgget()函数获取消息队列的ID
+      21         kt = ftok("./",1);
+      22         if(kt == -1){
+      23                 perror("ftok error");
+      24                 exit(-1);
+      25         }
+      26         msg_id = msgget(kt,IPC_CREAT | 0666);
+      27         if(msg_id == -1){
+      28                 perror("msgget error");
+      29                 exit(-1);
+      30         }
+      31         msg_t msg;
+      32         nbytes = msgrcv(msg_id,&msg,sizeof(msg) - sizeof(msg.mtype),atol(argv[1]),IPC_NOWAIT);
+      33         if(nbytes == -1){
+      34                 //没读到消息，提示，否则输出错误
+      35                 if(errno == ENOMSG){
+      36                         fprintf(stdout,"队列中无该类型消息\n");
+      37                         return 0;
+      38                 }
+      39                 perror("msgrcv error");
+      40                 exit(-1);
+      41         }
+      42         fprintf(stdout,"消息发送进程ID : %d\n",msg.pid);
+      43         fprintf(stdout,"消息类型 : %ld\n",msg.mtype);
+      44         fprintf(stdout,"消息内容 : %s\n",msg.msg_buf);
+      45         return 0;
+      46 }
      ```
 
      

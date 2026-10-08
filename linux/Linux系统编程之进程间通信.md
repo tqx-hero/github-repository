@@ -1098,6 +1098,172 @@
 
      
 
+   - ##### msgctl(man 2 msgctl):用于对消息队列进行属性操作
+
+     ```c
+     #include <sys/types.h>
+     #include <sys/ipc.h>
+     #include <sys/msg.h>
+     /**
+     	对消息队列的属性进行设置，包括查询、修改、删除
+     	msqid : 消息队列ID
+     	cmd: 对消息队列的操作,取值如下:
+     	
+     		IPC_RMID: 立即删除该消息队列，唤醒所有处于等待状态的读进程与写进程（调用将返回错误，同时将错误号设置为 EIDRM）。调用进程必须具备相应权限，或者其有效用户 ID 需要与该消息队列的创建者或所有者的用户 ID 一致。此种情况下，msgctl () 的第三个参数会被忽略。
+     		
+     		IPC_STAT: 获取消息队列的属性，并将其拷贝到第三个参数表示的地址中
+     		
+     		IPC_SET:  将 buf 所指向的 msqid_ds 结构体中部分成员的值写入与此消息队列相关的内核数据结构，同时更新该结构体的 msg_ctime 成员。会更新该结构体的以下成员：msg_qbytes、msg_perm.uid、msg_perm.gid 以及 msg_perm.mode（其低 9 位）。调用进程的有效用户 ID 必须与该消息队列的所有者（msg_perm.uid）或者创建者（msg_perm.cuid）相匹配，或者调用者必须拥有特权。若要将 msg_qbytes 的值提升至超过系统参数 MSGMNB，则需要具备相应权限（Linux：CAP_SYS_RESOURCE 权限）。
+     		struct ipc_perm中可以进行修改的属性有：
+             struct ipc_perm {
+                 uid_t          uid;         // 属主的uid
+                 gid_t          gid;         // 属主的组id
+                 unsigned short mode;        // 权限
+             };
+     		
+     		IPC_INFO:(ipcs -l)包括消息队列、共享内存、信号量数组等所有内核配置.
+     			返回由 buf 指向的结构体中关于系统范围内消息队列限制与参数的信息。该结构体类型为 msginfo（因此需要进行强制类型转换）。使用时必须添加宏定义： #define _GNU_SOURCE。
+     			
+     		MSG_INFO(LINUX特有):(ipcs -q关于消息队列的一些系统配置)
+     			返回一个 msginfo 结构体(需要强转成struct myqid_ds* 接收)，其中包含与 IPC_INFO 相同的信息，但以下字段会返回关于消息队列所占用系统资源的相关信息：msgpool 字段返回系统当前已存在的消息队列数量；msgmap 字段返回系统上所有队列中的消息总数；msgtql 字段返回所有队列内全部消息的总字节数。
+     			
+     		虽然MSG_INFO与IPC_INFO返回结构体都是msginfo,但是语义不同。
+     		IPC_INFO返回的字段是包括内核维护的消息队列、共享内存、信号量等数据的全局配置信息；
+     		MSG_INFO返回的是仅包括消息队列这一项的配置信息。
+     		
+     	buf: 对消息队列处理时的数据来源、去向
+     	return: 
+     		-1: 处理失败
+     		0: 处理成功
+     */
+     int msgctl(int msqid, int cmd, struct msqid_ds *buf);
+     //参数的结构体定义：
+     struct msqid_ds {
+         struct ipc_perm msg_perm;     /* Ownership and permissions */
+         time_t          msg_stime;    /* Time of last msgsnd(2) */
+         time_t          msg_rtime;    /* Time of last msgrcv(2) */
+         time_t          msg_ctime;    /* Time of last change */
+         unsigned long   __msg_cbytes; /* 当前队列中消息的字节数 */
+         msgqnum_t       msg_qnum;     /* 队列中当前的消息数量 */
+         msglen_t        msg_qbytes;   /* 队列可允许的最大字节数 */
+         pid_t           msg_lspid;    /* 最后一次调用msgsnd(2)的进程ID */
+         pid_t           msg_lrpid;    /* 最后一个调用msgrcv(2)的进程ID */
+     };
+     
+     struct ipc_perm {
+         key_t          __key;       /* 提供给msgget(2)的key */
+         uid_t          uid;         /* 属主的uid */
+         gid_t          gid;         /* 属主的组id */
+         uid_t          cuid;        /* 创建者的uid */
+         gid_t          cgid;        /* 创建者的组id */
+         unsigned short mode;        /* 权限 */
+         unsigned short __seq;       /* 序列号 */
+     };
+     
+     struct msginfo {
+         int msgpool; /* 用于存放消息数据的缓冲池大小（单位：基二进制千字节）；在内核中未使用 */
+         int msgmap;  /* 消息映射表中的最大条目数；内核内部未使用 */
+         int msgmax;  /* 单条消息可写入的最大字节数 */
+         int msgmnb;  /* 可写入队列的最大字节数；用于在队列创建（msgget (2)）过程中初始化 msg_qbytes */
+         int msgmni;  /* 最大消息队列数量 */
+         int msgssz;  /* 消息段大小；内核内部未使用 */
+         int msgtql;  /* 系统中所有队列的消息最大数量；内核内部未使用 */
+         unsigned short int msgseg;
+         /* Maximum number of segments;
+                                           unused within kernel */
+     };
+     ```
+
+     ##### cmd:
+
+     ###### IPC_RMID:删除这个ID的消息队列
+
+     ```c
+       1 #include <unistd.h>
+       2 #include <sys/types.h>
+       3 #include <sys/ipc.h>
+       4 #include <sys/msg.h>
+       5 #include <stdio.h>
+       6 #include <stdlib.h>
+       7 //msgctl()系统调用对消息队列本身的操作
+       8 //这里先以简单的删除消息队列为例
+       9 int main(){
+      10         if(msgctl(0,IPC_RMID,NULL) == -1){
+      11                 perror("msgctl rm msg error");
+      12                 exit(-1);
+      13         }
+      14         fprintf(stdout,"删除成功\n");
+      15         execlp("ipcs","ipcs","-q",NULL);
+      16         perror("exec ipcs error");
+      17         return 0;
+      18 }
+     ```
+
+     ###### IPC_STAT:获取消息队列的属性
+
+     ```c
+       1 #include <unistd.h>
+       2 #include <sys/types.h>
+       3 #include <sys/ipc.h>
+       4 #include <sys/msg.h>
+       5 #include <stdio.h>
+       6 #include <stdlib.h>
+       7 #include <string.h>
+       8 //msgctl()获取消息队列的属性
+       9 int main(){
+      10         struct msqid_ds msd;
+      11         if(msgctl(1,IPC_STAT,&msd) == -1){
+      12                 perror("ipc stat msg error");
+      13                 exit(-1);
+      14         }
+      15         printf("获取成功\n");
+      16         return 0;
+      17 }
+     ```
+
+     ###### 通过gdb调试获取的msd结构体内容：
+
+     ```bash
+     (gdb) display msd	#展示struct msqid_ds结构体属性
+     
+     1: msd = {msg_perm = {__key = 17119038, uid = 1000, gid = 1000, cuid = 1000, cgid = 1000, mode = 438, __seq = 0, __pad2 = 0, __glibc_reserved1 = 0,
+         __glibc_reserved2 = 0}, msg_stime = 1791423541, msg_rtime = 1791423541, msg_ctime = 1791423425, __msg_cbytes = 0, msg_qnum = 0, msg_qbytes = 16384,
+       msg_lspid = 135642, msg_lrpid = 135645, __glibc_reserved4 = 0, __glibc_reserved5 = 0}
+     
+     ```
+
+     ###### MSG_INFO:获取内核针对消息队列的属性
+
+     ```c
+       1 #include <unistd.h>
+       2 #include <sys/types.h>
+       3 #include <sys/ipc.h>
+       4 #include <sys/msg.h>
+       5 #include <stdio.h>
+       6 #include <stdlib.h>
+       7 #include <string.h>
+       8 //msgctl()获取消息队列的属性MSG_INFO
+       9 int main(){
+      10         struct msginfo info;	//返回的结构体是msginfo，传参时需要强转。
+      11         if(msgctl(1,MSG_INFO,(struct msqid_ds*)&info) == -1){
+      12                 perror("ipc stat msg error");
+      13                 exit(-1);
+      14         }
+      15         printf("获取成功\n");
+      16         return 0;
+      17 }
+     ```
+
+     ###### gdb调试结果:
+
+     ```bash
+     (gdb) display info
+     
+     1: info = {msgpool = 1, msgmap = 0, msgmax = 8192, msgmnb = 16384, msgmni = 32000, msgssz = 16, msgtql = 0, msgseg = 65535}
+     ```
+
+     
+
    - 
 
 4. ### mmap：

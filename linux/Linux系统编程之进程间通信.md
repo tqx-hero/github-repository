@@ -751,7 +751,7 @@
      /**
      	msgid: 消息队列id
      	msgp: 要发送的消息结构体地址。
-     	msgsz: 发送的消息体大小。注意，该大小不包括消息结构体的第一个字段mtype
+     	msgsz: 发送的消息正文大小。注意，该大小不包括消息结构体的第一个字段mtype
      	msgflg: 当队列已满时如何处理
      		0：阻塞直到满足条件
      		IPC_NOWAIT： 不阻塞直接返回。
@@ -826,7 +826,7 @@
      /**
      	msqid: 消息队列id
      	msgp: 把消息读到的内存地址
-     	msgsz: 消息体大小，不包括msg_type
+     	msgsz: 消息正文大小，不包括msg_type
      	msgtyp: 要读取的消息体的类型，消息体结构体的第一个字段。
      		 =0: 读取队列的第一个消息
      		 >0: 读取这个类型对应的消息
@@ -1007,6 +1007,93 @@
       44         fprintf(stdout,"消息内容 : %s\n",msg.msg_buf);
       45         return 0;
       46 }
+     ```
+
+     ##### demo3:使用一个消息队列实现一对多聊天
+
+     ###### **启动程序时的输入参数有2个，第一个argv[1]是自身的用户名，第二个参数argv[2]是绑定自身的mtype。**
+
+     ###### fork()用于创建子进程，每个会话有2个进程分别负责读写消息队列。
+
+     ###### 读消息队列就是按照msgrcv()定义读
+
+     ###### 写消息队列时，先提前写入固定的字段：pid与username，至于mtype需要用户在每次发送消息时填入，用来区分给哪个用户发送这条消息。
+
+     ###### 为简单起见，这里提示语直接写死了，扩展的话可以使用一个哈希表存储用户名与mtype的关系。
+
+     ###### 此demo没有处理父子进程出错误退出时的流程，会导致子进程变成孤儿进程或僵尸进程，需要通过信号进行完善。
+
+     ```c
+       1 #include <sys/msg.h>
+       2 #include <unistd.h>
+       3 #include <fcntl.h>
+       4 #include <stdio.h>
+       5 #include <stdlib.h>
+       6 #include <string.h>
+       7 //使用消息队列实现多人聊天
+       8 //fork()出子进程，父进程用于写消息，子进程用于读消息
+       9 //封装消息结构体，除了mtype之外，消息正文有进程ID，用户名称、消息内容
+      10 //创建/开启一个消息队列，使用消息队列读写函数进行系统调用
+      11 //为简单起见，令argv[1] 为自身的用户名，argv[2]为消息类型
+      12
+      13 typedef struct {
+      14         long int mtype;
+      15         pid_t pid;
+      16         char username[64];
+      17         char msg_buf[256];
+      18 }msg_t;
+      19
+      20 int main(int argc,char** argv){
+      21         if(argc < 3){
+      22                 fprintf(stderr,"参数必须包含:用户名、消息类型\n");
+      23                 return -1;
+      24         }
+      25         int msg_id;
+      26         key_t kt;
+      27         pid_t pid;
+      28         ssize_t nbytes;
+      29         //创建、打开消息队列
+      30         kt = ftok("./",1);
+      31         if(kt == -1){
+      32                 perror("ftok error");
+      33                 exit(-1);
+      34         }
+      35         msg_id  = msgget(kt,IPC_CREAT | 0666); //根据key获取消息队列ID
+      36         //定义消息结构体
+      37         msg_t msg;
+      38         //fork()子进程
+      39         if((pid = fork()) == -1){
+      40                 perror("fork error");
+      41                 exit(-1);
+      42         }
+      43         //子进程负责读取消息到消息体
+      44         if(pid == 0){
+      45                 while(1){
+      46                         nbytes = msgrcv(msg_id,&msg,sizeof(msg) - sizeof(long int),atol(argv[2]),0);
+      47                         if(nbytes == -1){
+      48                                 perror("msgrcv error");
+      49                                 exit(-1);
+      50                         }
+      51                         //拼接读到的消息
+      52                         fprintf(stdout,"mtype:[%ld],PID:[%d],username[%s]:%s\n",msg.mtype,msg.pid,msg.username,msg.msg_buf);
+      53                 }
+      54         }else{
+      55                 //打包msg，填上固定字段username与pid
+      56                 strcpy(msg.username,argv[1]);
+      57                 msg.pid = getpid();
+      58                 while(1){
+      59                         //父进程写入消息，注意要添加给谁发送的消息
+      60                         printf("请输入写入的消息类型mtype与消息内容msg，以空格分开(1:bob;2:join;3:jan):\n");
+      61                         scanf("%ld %s",&msg.mtype,msg.msg_buf);
+      62                         //发送消息
+      63                         if(msgsnd(msg_id,&msg,sizeof(msg) - sizeof(long),0) == -1){
+      64                                 perror("msgsnd error");
+      65                                 break;
+      66                         }
+      67                 }
+      68         }
+      69         return 0;
+      70 }
      ```
 
      

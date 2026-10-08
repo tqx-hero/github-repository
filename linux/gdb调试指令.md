@@ -85,6 +85,8 @@
    ```shell
    #显示abc的值
    display abc
+   #去掉第2项的display展示项
+   disable display 2
    ```
 
    

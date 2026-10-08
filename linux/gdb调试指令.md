@@ -75,6 +75,7 @@
    ```shell
    next(或者n)
    step(简写为s可进入函数内部)
+   continue(简写c，直接跳转到下一个断点)
    ```
 
    

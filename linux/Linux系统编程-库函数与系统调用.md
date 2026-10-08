@@ -234,9 +234,13 @@
    fcntl函数有5种功能：
    
    1.复制一个现有的描述符（cmd=F_DUPFD）.
-   
+   	功能等价于dup(fd)
    2.获得／设置文件描述符标记(cmd=F_GETFD或F_SETFD).
-   
+   	可通过：
+   		int flag = fcntl(fd,F_GETFD);
+   		fcntl(fd,F_SETFD,flag | FD_CLOEXEC);
+   	设置文件描述符在执行某个exec函数后自动关闭。
+   	
    3.获得／设置文件状态标记(cmd=F_GETFL或F_SETFL).
    
    4.获得／设置异步I/O所有权(cmd=F_GETOWN或F_SETOWN).
@@ -1609,4 +1613,129 @@
 
     
 
-23. 
+23. ##### mkdir创建目录：
+
+    ```c
+    #include <sys/stat.h>
+    #include <sys/types.h>
+    
+    int mkdir(const char *pathname, mode_t mode);
+    ```
+
+    ###### demo:
+
+    ```c
+      1 #include <sys/types.h>
+      2 #include <sys/stat.h>
+      3 #include <unistd.h>
+      4 //创建文件夹
+      5 int main(){
+      6         if(mkdir("./test",0777) == -1){
+      7                 exit(-1);
+      8         }
+      9         execlp("ls","ls","-lh",NULL);
+     10         return 0;
+     11 }
+    ```
+
+    
+
+24. ##### rmdir删除目录：
+
+    ###### 要删除的文件夹必须为空
+
+    ```c
+    #include <unistd.h>
+    
+    int rmdir(const char *pathname);
+    ```
+
+    ###### demo:
+
+    ```c
+      1 #include <sys/types.h>
+      2 #include <sys/stat.h>
+      3 #include <unistd.h>
+      4 //删除文件夹
+      5 int main(){
+      6         if(rmdir("./test") == -1){
+      7                 exit(-1);
+      8         }
+      9         execlp("ls","ls","-lh",NULL);
+     10         return 0;
+     11 }
+    ```
+
+    
+
+25. ##### chdir改变工作目录：
+
+    ```c
+    #include <unistd.h>
+    
+    int chdir(const char *path);
+    ```
+
+    
+
+26. ##### getcwd获取当前工作目录:
+
+    ```c
+    #include <unistd.h>
+    /**
+    	buf: 获取的当前绝对路径字符串拷贝到的地址
+    	size: 最多拷贝多少字节,如果路径过长size不够，会拷贝失败，返回NULL，errno = ERANGE
+    	return: 
+    		成功：返回buf的首地址
+    		失败：返回NULL
+    */
+    char *getcwd(char *buf, size_t size);
+    //可移植性差，不建议使用
+    char *getwd(char *buf);
+    /**
+    	获取当前工作目录。GNU扩展，非POSIX标准。
+    	返回的指针在堆上，使用完必须free以免内存泄漏。
+    */
+    char *get_current_dir_name(void);
+    ```
+
+    ###### demo：
+
+    ###### getcwd:
+
+    ```c
+      1 #include <unistd.h>
+      2 #include <stdio.h>
+      3 #include <stdlib.h>
+      4 //先获取当前工作目录，在改变工作目录，再获取一遍当前工作目录。
+      5 int main(){
+      6         char path[128];
+      7         getcwd(path,128);
+      8         printf("当前工作目录 : %s\n",path);
+      9         //改变工作目录
+     10         chdir("../");
+     11         getcwd(path,128);
+     12         printf("改变后工作目录 : %s\n",path);
+     13         return 0;
+     14 }
+    ```
+
+    ###### get_current_dir_name:
+
+    ```c
+      1 #define _GNU_SOURCE
+      2 #include <unistd.h>
+      3 #include <stdio.h>
+      4 #include <stdlib.h>
+      5
+      6 int main(){
+      7         char * pathname = get_current_dir_name();
+      8         printf("当前工作目录 = %s\n",pathname);
+      9         free(pathname);	//一定要注意释放内存
+     10         return 0;
+     11 }
+    ```
+
+    
+
+27. 

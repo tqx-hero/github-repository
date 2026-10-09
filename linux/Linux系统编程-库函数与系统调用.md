@@ -1769,6 +1769,7 @@
     			成功： 返回内存段的起始地址。
     			失败： 返回MAP_FAILED( = void(*)-1),errno被填充。
     */
+    typedef int off_t;
     void *mmap(void *addr, size_t length, int prot, int flags,int fd, off_t offset);
     /**
     	释放映射到的内存段
@@ -1898,6 +1899,76 @@
      28                 perror("munmap error");
      29         return 0;
      30 }
+    ```
+
+    ###### demo:使用mmap给映射文件修改
+
+    ```c
+      1 #include <sys/types.h>
+      2 #include <sys/stat.h>
+      3 #include <stdlib.h>
+      4 #include <string.h>
+      5 #include <unistd.h>
+      6 #include <fcntl.h>
+      7 #include <stdio.h>
+      8 #include <sys/mman.h>
+      9 //使用文件读写、mmap()文件映射2种方式对文件进行操作。
+     10 #define STR_SIZE 128	//结构体字符串大小
+     11 #define RECORD_SIZE 100
+     12 #define FILE_PATH "./test.txt"
+     13 typedef struct { //定义记录结构体
+     14         int id;
+     15         char string[STR_SIZE];
+     16 } record_t;
+     17
+     18 int main(){
+     19         int fd,i;
+     20         record_t record;
+     21         off_t nbytes;
+     22         record_t* rct;
+     23         if((fd = open(FILE_PATH,O_CREAT | O_RDWR,0644)) == -1){
+     24                 perror("open error");
+     25                 exit(-1);
+     26         }
+     27         //定义记录，以系统调用形式写入文件
+     28         for(i = 0;i < RECORD_SIZE;++i){
+     29                 record.id = i;
+     30                 sprintf(record.string,"RECORD is %d",i);
+     31                 write(fd,&record,sizeof(record));
+     32         }
+     33         //重置读指针
+     34         lseek(fd,0,SEEK_SET);
+     35         //获取文件size
+     36         struct stat st;
+     37         if(fstat(fd,&st) == -1){
+     38                 perror("fstat error");
+     39                 close(fd);
+     40                 exit(-1);
+     41         }
+     42         nbytes = st.st_size;
+     43         printf("文件size = %ld",nbytes);
+     44         //文件映射内存块
+     45         rct = (record_t*) mmap(NULL,nbytes,PROT_READ | PROT_WRITE,MAP_SHARED,fd,0);
+     46         close(fd);
+     47         if(rct == MAP_FAILED){
+     48                 perror("mmap error");
+     49                 exit(-1);
+     50         }
+     51         //根据内存块内容读取数据
+     52         printf("文件内容1: id = %d, string = %s\n",rct[0].id,rct[0].string);
+     53         //修改第一条记录
+     54         rct[1].id = 10086;
+     55         strcpy(rct[1].string,"这是一条修改记录");
+     56         //异步写回文件
+     57         if(msync(rct,2 * sizeof(record_t),MS_ASYNC | MS_INVALIDATE) == -1){
+     58                 perror("msync error");
+     59                 munmap(rct,nbytes);
+     60                 exit(-1);
+     61         }
+     62         fprintf(stdout,"修改后的第一条记录 = id = %d,string = %s\n",rct[1].id,rct[1].string);
+     63         munmap(rct,nbytes);
+     64         return 0;
+     65 }
     ```
 
     

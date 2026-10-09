@@ -1040,4 +1040,20 @@
 
     
 
-54. 
+54. ##### size查看二进制文件 [Bob_chat] 在内存中的分区情况：
+
+    ```bash
+    tqx@linux-ubuntu$ size Bob_chat
+    
+    #text 代码段(只读)；
+    #data 已初始化的全局变量、静态变量；
+    #bss 未初始化的全局变量、静态变量；
+    #dec 前几项的总和十进制表示；
+    #hex 前几项的总和十六进制表示
+       text    data     bss     dec     hex filename
+       3460     700      16    4176    1050 Bob_chat
+    ```
+
+    
+
+55. 

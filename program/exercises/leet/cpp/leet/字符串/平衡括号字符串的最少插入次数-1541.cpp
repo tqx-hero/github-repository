@@ -114,14 +114,14 @@ public:
     }
 };
 
-int main()
-{
-    // string s = "(()))";
-    // string s = "())";
-    // string s = "))())(";
-    // string s = "((((((";
-    string s = ")))))))";
-    Solution sl;
-    cout << sl.minInsertions(s) << endl;
-    return 0;
-}
+// int main()
+// {
+//     // string s = "(()))";
+//     // string s = "())";
+//     // string s = "))())(";
+//     // string s = "((((((";
+//     string s = ")))))))";
+//     Solution sl;
+//     cout << sl.minInsertions(s) << endl;
+//     return 0;
+// }

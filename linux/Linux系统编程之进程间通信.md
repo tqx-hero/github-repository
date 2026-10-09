@@ -1023,6 +1023,12 @@
 
      ###### 此demo没有处理父子进程出错误退出时的流程，会导致子进程变成孤儿进程或僵尸进程，需要通过信号进行完善。
 
+     ###### 1、第一种方式：
+
+     ###### 启动脚本时输入相关参数。如： ./chat Lucy 1
+
+     ###### 仅生成一份可执行程序，根据传参不同来启动不同的会话。
+
      ```c
        1 #include <sys/msg.h>
        2 #include <unistd.h>
@@ -1094,6 +1100,115 @@
       68         }
       69         return 0;
       70 }
+     ```
+
+     ###### 2、第二种方式：使用宏在编译器进行脚本生成。gcc chat.c -Dp -o *_chat,利用-D选项的指定宏名称，生成不同的可执行程序分别启动。
+
+     ```c
+       1 #include <sys/msg.h>
+       2 #include <unistd.h>
+       3 #include <fcntl.h>
+       4 #include <stdio.h>
+       5 #include <stdlib.h>
+       6 #include <string.h>
+       7 //使用消息队列实现多人聊天
+       8 //fork()出子进程，父进程用于写消息，子进程用于读消息
+       9 //封装消息结构体，除了mtype之外，消息正文有进程ID，用户名称、消息内容
+      10 //创建/开启一个消息队列，使用消息队列读写函数进行系统调用
+      11 //定义宏，根据编译时 -D传入的宏不同来区分不同的名称.
+      12 #ifdef L
+      13 #define NAME 'L'
+      14 char writer[]= "Lucy";
+      15 #endif
+      16
+      17 #ifdef B
+      18 #define NAME 'B'
+      19 char writer[]= "Bob";
+      20 #endif
+      21
+      22 #ifdef J
+      23 #define NAME 'J'
+      24 char writer[]= "Join";
+      25 #endif
+      26
+      27 typedef struct {
+      28         long int mtype;
+      29         pid_t pid;
+      30         char username[64];
+      31         char msg_buf[256];
+      32 }msg_t;
+      33
+      34 int main(int argc,char** argv){
+      35         /*
+      36         if(argc < 3){
+      37                 fprintf(stderr,"参数必须包含:用户名、消息类型\n");
+      38                 return -1;
+      39         }
+      40         */
+      41         int msg_id;
+      42         key_t kt;
+      43         pid_t pid;
+      44         ssize_t nbytes;
+      45         //创建、打开消息队列
+      46         kt = ftok("./",1);
+      47         if(kt == -1){
+      48                 perror("ftok error");
+      49                 exit(-1);
+      50         }
+      51         msg_id  = msgget(kt,IPC_CREAT | 0666); //根据key获取消息队列ID
+      52         //定义消息结构体
+      53         msg_t msg;
+      54         //fork()子进程
+      55         if((pid = fork()) == -1){
+      56                 perror("fork error");
+      57                 exit(-1);
+      58         }
+      59         //子进程负责读取消息到消息体
+      60         if(pid == 0){
+      61                 while(1){
+      62                         nbytes = msgrcv(msg_id,&msg,sizeof(msg) - sizeof(long int),(long int)(NAME),0);
+      63                         if(nbytes == -1){
+      64                                 perror("msgrcv error");
+      65                                 exit(-1);
+      66                         }
+      67                         //拼接读到的消息
+      68                         fprintf(stdout,"mtype:[%ld],PID:[%d],username[%s]:%s\n",msg.mtype,msg.pid,msg.username,msg.msg_buf);
+      69                 }
+      70         }else{
+      71                 //打包msg，填上固定字段username与pid
+      72                 strcpy(msg.username,writer);
+      73                 msg.pid = getpid();
+      74                 char snd_buf[256],ch;
+      75                 while(1){
+      76                         //父进程写入消息，注意要添加给谁发送的消息
+      77                         printf("请输入要发送的人员首字母与消息内容msg，以:分开(如给Bob发送消息hello输入: [B:hello]):\n");
+      78                         scanf("%c:%s",&ch,snd_buf);
+      79                         //解析内容
+      80                         msg.mtype = (long int)ch;
+      81                         strcpy(msg.msg_buf,snd_buf);
+      82                         //发送消息
+      83                         if(msgsnd(msg_id,&msg,sizeof(msg) - sizeof(long),0) == -1){
+      84                                 perror("msgsnd error");
+      85                                 break;
+      86                         }
+      87                 }
+      88         }
+      89         return 0;
+      90 }
+     ```
+
+     ###### 生成启动脚本 make.sh:
+
+     ```bash
+       1 #1/bin/bash
+       2 # 生成聊天程序的脚本
+       3 src="three_chat_define.c"
+       4 names=("Join" "Bob" "Lucy");
+       5 find . -name "*_chat" -type f -exec rm -rf {} +
+       6 for item in "${names[@]}";do
+       7         gcc -g $src -D${item:0:1} -o ${item}_chat
+       8         echo "已生成可执行程序: ${item}_chat"
+       9 done
      ```
 
      

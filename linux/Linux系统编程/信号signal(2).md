@@ -367,7 +367,7 @@ tqx       140665  0.0  0.0   2496   576 pts/3    S    11:20   0:00 ./loop	#S为�
   		>0: 如果上次alarm()设置的时间还没到，返回上次闹钟响起的剩余时间。
   		=0: 除以上情况外。
   */
-  unsigned alarm(unsigned seconds);
+  unsigned int alarm(unsigned int seconds);
   ```
 
   ###### demo: 设置2秒的闹钟
@@ -662,6 +662,100 @@ tqx@linux-ubuntu$ ./sig_action_func
 ^C	#执行SIGINT的默认处理，也就是终止进程。
 ```
 
+###### demo3：使用信号注册父进程回收子进程
+
+##### 注意点：使用waitpid(2)回收时要循环，千万不能用if，因为信号不能排队，可能会出现多个子进程发送信号，但SIGCHLD只记录一次的情况。
+
+```c
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <sys/wait.h>
+//waitpid回收5个子进程
+int count;
+void collection_child(int signum){
+        pid_t pid;
+        //千万不要使用if，因为信号不能排队，当多个子进程同时发送SIGCHLD时，信号只会记录一次
+        //使用if会出现回收不全的情况
+        while((pid = waitpid(-1,NULL,WNOHANG)) >0)//使用while循环回收，直到没有可回收的子进程退出
+                printf("已回收第 %d 个子进程 : %d\n",++count,pid);
+}
+
+int main(){
+        count = 0;
+        pid_t pid;
+        //注册信号handler
+        struct sigaction sa;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = 0;
+        sa.sa_handler = collection_child;
+        sigaction(SIGCHLD,&sa,NULL);
+        for(int i=0;i < 5;++i){
+                if((pid = fork()) < 0 )
+                        perror("");
+                else if(pid ==0){
+                        fprintf(stdout,"子进程已创建，pid = %d\n",getpid());
+                        sleep(4);
+                        exit(0);
+                }
+        }
+        while(count < 5);
+        printf("已全部回收所有的子进程\n");
+        return 0;
+}
+```
+
+###### 输出结果：
+
+```bash
+tqx@linux-ubuntu$ ./fork_create5
+子进程已创建，pid = 143326
+子进程已创建，pid = 143327
+子进程已创建，pid = 143328
+子进程已创建，pid = 143329
+子进程已创建，pid = 143330
+已回收第 1 个子进程 : 143326
+已回收第 2 个子进程 : 143327
+已回收第 3 个子进程 : 143329
+已回收第 4 个子进程 : 143328
+已回收第 5 个子进程 : 143330
+已全部回收所有的子进程	#父进程退出
+```
+
+###### demo4：使用 flags的SA_NOCLDWAIT选项，让内核回收退出的子进程的PCB，省去了父进程回收的步骤，写法更简洁
+
+```c
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <sys/wait.h>
+//回收5个子进程
+int main(){
+        pid_t pid;
+        //注册信号handler
+        struct sigaction sa;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags |= SA_NOCLDWAIT;	//使用该选项，内核会自动回收死掉的子进程资源。
+        sa.sa_handler = SIG_DFL;	//注意，要使SA_NOCLDWAIT有效，必须使用SIG_DFL或者自定义函数，不能使用SIG_IGN
+        sigaction(SIGCHLD,&sa,NULL);//而且在这里使用自定义函数统计子进程相关信息是不准确的，因为信号不能排队，
+        for(int i=0;i < 5;++i){		//子进程没有通过waitpid(2)回收，在handler内部依靠信号获取的信息是不准确的。
+                if((pid = fork()) < 0 )
+                        perror("");
+                else if(pid ==0){
+                        fprintf(stdout,"子进程已创建，pid = %d\n",getpid());
+                        sleep(4);
+                        exit(0);
+                }
+        }
+        while(1);
+        return 0;
+}
+```
+
 
 
 - ##### signal(2):
@@ -721,6 +815,140 @@ tqx@linux-ubuntu$ ./sig_action_func
           }
           return 0;
   }
+  ```
+
+  
+
+- ##### 定时器setitimer/getitimer(2)：
+
+  ###### 给进程设定周期性的闹钟。当闹钟到时，内核会给该进程发送指定信号，内核会根据相应的处理函数进行处理(可根据sigaction/signal进行信号注册)。
+
+  ```c
+  #include <sys/time.h>
+  /**
+  	获取指定信号类型的定时器。
+  	which：
+  		哪种信号，有三种选项：
+  		1、ITIMER_REAL：
+  			#define    ITIMER_REAL             0
+  			按照真实时间(墙上时间)倒计时，时间到了发送SIGALRM信号。
+  		2、ITIMER_VIRTUAL：
+  			#define    ITIMER_VIRTUAL          1
+  			统计的是进程在用户态的CPU时间(包括所有线程)，时间到了发送SIGVTALRM
+  		3、ITIMER_PROF：
+  			#define    ITIMER_PROF             2
+  			统计的是进程的总CPU时间(用户态+内核态)，时间到了发送SIGPROF信号。
+  			该定时器与第二种定时器配合使用，就可以统计进程的用户态与内核态CPU使用情况，做进一步分析。
+  		每一个进程每种定时器最多只能设置1个。
+  	curr_value: 将which信号的定时器信息以副本形式拷贝到该指针。
+  		定时器的结构体。
+  	return:
+  		0:成功
+  		-1:失败，errno为错误码
+  */
+  int getitimer(int which, struct itimerval *curr_value);
+  /**
+  	函数 setitimer () 通过将定时器设置为 new_value 指定的值，启用或禁用 which 指定的定时器。若 old_value 不为空，它所指向的缓冲区将用于返回该定时器之前的设置值（即 getitimer () 返回的同类信息）。
+  若 new_value.it_value 的任意一个字段非零，则定时器会被启用，并在指定的初始时间到期触发。若 new_value.it_value 的两个字段均为零，则定时器将被禁用。
+  new_value.it_interval 字段指定定时器的新间隔；若它的两个子字段都为零，则该定时器为一次性触发。
+  
+  	which:
+  		信号类型，同getitimer(2)
+  	new_value:
+  		要放置的定时器数据指针。
+  	old_value:
+  		被覆盖的旧的定时器数据要拷贝到的地址
+  	return:
+  		0 : 成功
+  		-1: 失败，错误码errno
+  */
+  int setitimer(int which, const struct itimerval *new_value,
+                struct itimerval *old_value);
+  
+  //定时器结构体
+  struct itimerval {
+      struct timeval it_interval; /* 闹钟周期触发的间隔 */
+      struct timeval it_value;    /* 闹钟首次触发时间 */
+  };
+  typedef unsigned int time_t;
+  typedef long suseconds_t;
+  struct timeval {
+      time_t      tv_sec;         /* 秒数 */
+      suseconds_t tv_usec;        /* 微妙数 */
+  };
+  ```
+
+  ###### demo:设置一个周期为1s的定时器，让其定时器一到输出 "SIGARLM 定时器到时",输出5次之后关闭定时器。
+
+  ```c
+  #include <sys/time.h>
+  #include <signal.h>
+  #include <unistd.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  //setitimer(2)
+  int count = 0;
+  void sig_handler(int signum){
+          printf("SIGARLM 定时器到时\n");
+          count++;
+          //让定时器循环5次结束
+          if(count == 5){
+                  struct itimerval itl;
+                  bzero(&itl,sizeof(itl));
+                  if(setitimer(ITIMER_REAL,&itl,NULL) == -1)
+                          perror("reset timer error");
+          }
+  }
+  
+  int main(){
+          struct itimerval itl;
+          //设置定时器,设定初始触发与后续间隔都为1s
+          itl.it_interval.tv_sec = 1;
+          itl.it_value.tv_sec =1;
+          if(setitimer(ITIMER_REAL,&itl,NULL) == -1){//创建的ITIMER_REAL定时器，按照真实时间倒计时。
+                  perror("setitimer error");
+                  exit(-1);
+          }
+          //注册信号handler
+          struct sigaction sgn;
+          sigemptyset(&sgn.sa_mask);
+          sgn.sa_handler = sig_handler;
+          sgn.sa_flags = 0;
+          sigaction(SIGALRM,&sgn,NULL);
+          while(1){
+                  printf("循环中...\n");
+                  usleep(1000* 500);	//500毫秒执行一次循环
+          }
+          return 0;
+  }
+  ```
+
+  输出结果：
+
+  ```bash
+  tqx@linux-ubuntu$ ./setitimer
+  循环中...
+  循环中...
+  SIGARLM 定时器到时
+  循环中...
+  循环中...
+  SIGARLM 定时器到时
+  循环中...
+  循环中...
+  SIGARLM 定时器到时
+  循环中...
+  循环中...
+  SIGARLM 定时器到时
+  循环中...
+  循环中...
+  SIGARLM 定时器到时
+  循环中...
+  循环中...
+  循环中...
+  循环中...
+  循环中...
+  循环中...
   ```
 
   

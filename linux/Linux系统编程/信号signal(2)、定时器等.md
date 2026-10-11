@@ -118,23 +118,43 @@ Cont   如果当前进程处于暂停(停止)状态，恢复进程继续执行�
 
 ###### 如果没有给这个信号注册处理事件。内核会执行信号的默认处理程序，就是上面列表中的默认处理。
 
-##### 内核对信号的实现原理(底层理解)：
+##### 内核对信号的实现原理Linux0.11(底层理解)：
 
 ##### 在进程的PCB结构体中有3个字段：信号位图signal、信号处理函数数组、信号阻塞集blocked
 
 ```c
+//Linux0.11
 struct task_struct {
 /* these are hardcoded - don't touch */
-        long signal;	//信号位图，信号值 = offset+1，例如：0号位代表1号信号，即SIGHUP
+        long signal;	//信号位图，信号值 = offset+1，例如：0号位代表1号信号，即SIGHUP,高版本Linux类型为sigset_t
         struct sigaction sigaction[32]; //每个信号处理回调函数的数组，与信号位图对应，信号值 = 数组下标+1
-        long blocked;   /* 信号阻塞集位图，置1的位代表这一位表示的信号被屏蔽 */
+        long blocked;   /* 信号阻塞集位图，置1的位代表这一位表示的信号被屏蔽,高版本Linux类型为sigset_t */
 }
 //信号处理函数结构体
 struct sigaction {
         void (*sa_handler)(int);	//信号处理函数
         sigset_t sa_mask;	//信号的掩码，屏蔽集，表示执行当前信号时要屏蔽的信号集。处理函数返回时屏蔽自动撤销。
         int sa_flags;	//指定改变信号处理过程的信号集。
-        void (*sa_restorer)(void);	//恢复函数指针，内核内部用来清理用户态的堆栈。
+        void (*sa_restorer)(void);	//恢复函数指针，内核内部用来恢复handler调用函数之前的程序用户态的堆栈。
+};
+
+//高版本Linux：
+struct task_struct {
+    // ...
+    sigset_t blocked;      // 阻塞集，也叫屏蔽字，sigprocmask 改的就是这个
+    sigset_t real_blocked;
+    sigset_t pending;      // 待递送的未决信号
+    sigset_t shared_pending;
+    // ...
+    struct sigaction sighand[ _NSIG ]; // 每个信号的sa_handler、sa_mask、sa_flags
+};
+
+struct sigaction {
+    void (*sa_handler)(int);
+    void (*sa_sigaction)(int, siginfo_t *, void *);
+    sigset_t sa_mask; 
+    int sa_flags;
+    void (*sa_restorer)(void);
 };
 ```
 
@@ -435,9 +455,14 @@ tqx       140665  0.0  0.0   2496   576 pts/3    S    11:20   0:00 ./loop	#S为�
 
 ```c
 #include <signal.h>
-typedef unsigned long sigset_t;
+#define _SIGSET_NWORDS (1024 / (8 * sizeof (unsigned long int)))
+typedef struct
+{
+  unsigned long int __val[_SIGSET_NWORDS];
+} __sigset_t;	
+typedef __sigset_t sigset_t;	//sigset_t是一个1024位的bit数组
 typedef void (*__sighandler_t)(int);	//函数指针的参数为信号的编号
-typedef struct siginfo siginfo_t;
+
 /**
 	signum: 信号的编号
 	act: 要设置的信号处理相关配置
@@ -451,6 +476,7 @@ typedef struct siginfo siginfo_t;
 */
 int sigaction(int signum, const struct sigaction *act,struct sigaction *oldact);
 
+typedef struct siginfo siginfo_t;
 struct sigaction {
         union {
           __sighandler_t _sa_handler;//处理函数，取值有： 自定义函数指针、SIG_IGN、SIG_DFL。与sa_sigaction为联合体，二者只能取1
@@ -760,7 +786,7 @@ int main(){
 
 - ##### signal(2):
 
-  ###### 更古老版本的sigaction(2)
+  ###### 更古老版本的sigaction(2),在不同的系统中signal(2)的语义可能不同，移植性不如sigaction，所以日常使用还是推荐更强大的sigaction(2)。
 
   ```c
   #include <signal.h>
@@ -949,6 +975,271 @@ int main(){
   循环中...
   循环中...
   循环中...
+  ```
+
+  
+
+- ##### 操作信号集(sigset_t)的函数sig*set(3):
+
+  ###### sigset_t为信号集的1024位的bit数组
+
+  ##### sigset_t 类型的对象在传递给 sigaddset ()、sigdelset ()、sigismember ()，或是下文所述的其他 glibc 函数（sigisemptyset ()、sigandset () 以及 sigorset ()）之前，必须通过调用 sigemptyset () 或 sigfillset () 完成初始化。
+
+  ```c
+  #include <signal.h>
+  /**
+  	将信号集所有位置0
+  	set:
+  		要设置的位图指针。
+  	return:
+  		0:成功。
+  		-1:失败，errno为错误码
+  */
+  int sigemptyset(sigset_t *set);
+  /**
+  	将信号集所有位置1
+  	set:
+  		要设置的位图指针。
+  	return:
+  		0:成功。
+  		-1:失败，errno为错误码
+  */
+  int sigfillset(sigset_t *set);
+  /**
+  	将编号为signum的信号添加到信号集
+  	set:
+  		要设置的位图指针。
+  	signum:
+  		要加入信号集的信号编号
+  	return:
+  		0:成功。
+  		-1:失败，errno为错误码
+  */
+  int sigaddset(sigset_t *set, int signum);
+  /**
+  	将编号为signum的信号移除信号集。
+  	set:
+  		要设置的位图指针。
+  	signum:
+  		要移除信号集的信号编号
+  	return:
+  		0:成功。
+  		-1:失败，errno为错误码
+  */
+  int sigdelset(sigset_t *set, int signum);
+  /**
+  	判断编号为signum的信号是否已经存在于信号集。
+  	set:
+  		信号集位图指针。
+  	signum:
+  		要查询的信号
+  	return:
+  		0:不在信号集中。
+  		1：在信号集中。
+  		-1:失败，errno为错误码
+  */
+  int sigismember(const sigset_t *set, int signum);
+  ```
+
+  ###### demo:使用sig*set函数对sigaction的屏蔽字进行操作
+
+  ```c
+  #include <signal.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  //sigset_t的操作
+  int main(){
+          struct sigaction sg;
+          sigfillset(&sg.sa_mask); //将sigset所有位置1
+          printf("sigfill SIGINT是否存在于这个屏蔽字 = %d\n",sigismember(&sg.sa_mask,SIGINT));
+          sigemptyset(&sg.sa_mask); //将sigset所有位置0
+          printf("sigempty SIGINT是否存在于这个屏蔽字 = %d\n",sigismember(&sg.sa_mask,SIGINT));
+          sigaddset(&sg.sa_mask,SIGINT); //将信号添加到屏蔽字
+          printf("sigaddset SIGINT是否存在于这个屏蔽字 = %d\n",sigismember(&sg.sa_mask,SIGINT));
+          sigdelset(&sg.sa_mask,SIGINT); //将信号从屏蔽字删除
+          printf("sigdelset SIGINT是否存在于这个屏蔽字 = %d\n",sigismember(&sg.sa_mask,SIGINT));
+          return 0;
+  }
+  ```
+
+  
+
+- ##### 进程/线程控制块中阻塞集(屏蔽字)的设置函数sigprocmask(2):线程不安全
+
+  ##### 该函数是控制进程、线程控制块中屏蔽字blocked字段的，设置后在该进程运行期间始终有效。
+
+  ##### 并非是sigaction结构体中对信号处理时的sa_mask。该字段是在处理信号期间临时生效的。
+
+  ###### blocked设置后，进程在接收到信号后先将未决信号这一位置1，再查看该屏蔽字中是否屏蔽了该信号，
+
+  ###### 如果没屏蔽，进行信号处理handler，同时将未决信号这一位置0；
+
+  ###### 如果屏蔽了信号，不进行信号处理，未决信号这一位置保持1.
+
+  ```c
+  #include <signal.h>
+  /* Prototype for the glibc wrapper function */
+  /**
+  	how：屏蔽字处理行为。
+  		SIG_BLOCK：在原有的屏蔽字基础上添加第二个参数set。等同于：mask = mask | set.
+  		SIG_UNBLOCK: 在屏蔽字中删除set中的信号集。等同于： mask &= ~set.
+  					正由于底层是简单的位运算，所以set中可以放置不存在屏蔽字mask的信号参与运算。
+  		SIG_SETMASK：设置屏蔽字为set。等价于 mask = set.
+  		
+  	set: 针对原屏蔽字不同处理提供的参数地址。
+  		如果参数为NULL，不会对原屏蔽字进行任何改变，只会对oldset是否为NULL进行针对操作。
+  	oldset：
+  		修改前的原阻塞集副本。
+  		不为NULL，会将副本拷贝到改地址。
+  		为NULL，不进行拷贝。
+  	return：
+  		0：成功
+  		-1：失败,错误码保存在errno
+  */
+  int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+  ```
+
+  ###### demo1：进程屏蔽ctrl+c的SIGINT信号
+
+  ```c
+  #include <signal.h>
+  #include <unistd.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  //sigprocmask(2)的使用
+  int main(){
+          sigset_t newset,oldset;
+          sigemptyset(&newset);   //初始化信号集
+          sigaddset(&newset,SIGINT); //将SIGINT添加到信号集
+          if(sigprocmask(SIG_BLOCK,&newset,&oldset) == -1){ //将信号集添加到阻塞集
+                  perror("sigprocmask blocked error");
+                  exit(-1);
+          }
+          while(1){
+                  printf("循环停不下来\n");
+                  sleep(2);
+          }
+          return 0;
+  }
+  ```
+
+  输出：
+
+  ```bash
+  循环停不下来
+  循环停不下来
+  ^C循环停不下来	#输入的ctrl+c进程不会停下来，因为已经设置了SIGINT到阻塞集
+  ^C循环停不下来
+  循环停不下来
+  ```
+
+  ##### demo2:错误示例
+
+  ##### 不要在信号处理函数handler内部修改进程的属性，信号处理属于中断，线程是在内核态，而从handler执行前、后的线程是在用户态，这两个状态的进程属性值是完全不同的。在handler内部修改的只是内核线程，不会影响用户态下的线程，因为它们的PCB属性不相同。
+
+  ##### 要修改只能修改用户态下的进程属性，才会影响用户态下的进程运行。
+
+  ```c
+  #include <signal.h>
+  #include <unistd.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  //sigprocmask(2)的使用
+  
+  void alarm_handler(int signum){	
+          sigset_t set;
+          sigemptyset(&set);
+          sigaddset(&set,SIGINT);
+      	//在信号中修改进程、线程相关属性，有效期只会在该函数内部。
+      	//当函数执行结束后，内核会调用sigreturn,恢复在栈中保存的所有进程进入handler之前的现场，当然也包括它的PCB属性
+      	//所以在这里修改PCB的属性是没有意义的。重点就是理解信号处理的流程，在处理前后都保存了什么。
+          if(sigprocmask(SIG_UNBLOCK,&set,NULL) == -1){
+                  perror("sigprocmask unblock error");
+                  exit(-1);
+          }
+          printf("将SIGINT去除阻塞集成功\n");
+  }
+  
+  int main(){
+          sigset_t newset,oldset;
+          sigemptyset(&newset);   //初始化信号集
+          sigaddset(&newset,SIGINT); //将SIGINT添加到信号集
+          if(sigprocmask(SIG_BLOCK,&newset,&oldset) == -1){ //将信号集添加到阻塞集
+                  perror("sigprocmask blocked error");
+                  exit(-1);
+          }
+          //5s后使用SIGALRM信号将SIGINT信号的屏蔽效果去除
+          struct sigaction sg;
+          sigemptyset(&sg.sa_mask);
+          sg.sa_handler = alarm_handler;
+          sg.sa_flags = SA_RESETHAND;
+          sigaction(SIGALRM,&sg,NULL);
+          alarm(8);
+          while(1){
+                  printf("循环停不下来\n");
+                  sleep(2);
+          }
+          return 0;
+  }
+  ```
+
+  
+
+- ##### 获取当前的未决信号集sigpending(2)：
+
+  ###### 查询PCB中的pending字段：
+
+  未决信号集是进程在阻塞集的影响下还没有处理的信号集。它只能读取不能修改。
+
+  ```c
+  #include <signal.h>
+  /**
+  	获取pending的信号集
+  	set:
+  		将未决信号集放到该地址。
+  	return:
+  		0:成功。
+  		-1:失败，填充errno
+  */
+  int sigpending(sigset_t *set);
+  ```
+
+  ###### demo：设置SIGINT到阻塞集后使用ctrl+c发送信号，查看未决信号集是否存在SIGINT？
+
+  ```c
+  #include <signal.h>
+  #include <unistd.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  //sigpending(2)
+  int main(){
+          //将SIGINT放入阻塞集，阻塞期间使用ctrl+c给进程发送SIGINT信号
+          sigset_t bset,p_set;
+          sigemptyset(&bset);
+          sigaddset(&bset,SIGINT);
+          sigprocmask(SIG_BLOCK,&bset,NULL);
+          printf("设置SIGINT到阻塞集成功，现在可以发信号了\n");
+          sleep(5);	//这里按ctrl+c发信号
+          //显示它的未决信号
+          if(sigpending(&p_set) == -1){
+                  perror("sigpending error");
+                  exit(-1);
+          }
+          //查看未决信号是否存在SIGINT
+          printf("当前未决信号是否存在SIGINT? : %d\n",sigismember(&p_set,SIGINT));
+  
+          return 0;
+  }
+  ```
+
+  输出结果：
+
+  ```bash
+  linux$ ./sigpending
+  
+  设置SIGINT到阻塞集成功，现在可以发信号了
+  ^C当前未决信号是否存在SIGINT? : 1
   ```
 
   

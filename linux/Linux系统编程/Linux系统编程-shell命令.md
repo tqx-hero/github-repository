@@ -2276,4 +2276,23 @@
             最后使用重定向 << 输出给cat指令，作为cat的输入
     ```
 
+84. ##### ps:
+
+    ###### 查看进程/线程相关。
+
+    ```bash
+    ps [options]
+    #1、查看进程相关列表
+    ps -aux 
+    #通过管道 添加grep筛选
+    ps -aux | grep "str"
+    #查看进程号pid下的线程相关
+    ps -Lf pid
+    -L: 指LWP，表示轻量级进程，也就是线程。
+    -f: full.
+    #其他options查看man 1 ps。
+    ```
+
     
+
+85. 

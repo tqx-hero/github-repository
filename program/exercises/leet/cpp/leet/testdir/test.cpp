@@ -1,73 +1,84 @@
 /**
- * 492. 构造矩形
-简单
+ * 3727. 最大交替平方和
+中等
 相关标签
 premium lock icon
 相关企业
 提示
-作为一位web开发者， 懂得怎样去规划一个页面的尺寸是很重要的。 所以，现给定一个具体的矩形页面面积，你的任务是设计一个长度为 L 和宽度为 W 且满足以下要求的矩形的页面。要求：
+给你一个整数数组 nums。你可以以任意顺序 重新排列元素 。
 
-你设计的矩形页面必须等于给定的目标面积。
-宽度 W 不应大于长度 L ，换言之，要求 L >= W 。
-长度 L 和宽度 W 之间的差距应当尽可能小。
-返回一个 数组 [L, W]，其中 L 和 W 是你按照顺序设计的网页的长度和宽度。
+数组 arr 的 交替得分 定义为：
 
-
-示例1：
-
-输入: 4
-输出: [2, 2]
-解释: 目标面积是 4， 所有可能的构造方案有 [1,4], [2,2], [4,1]。
-但是根据要求2，[1,4] 不符合要求; 根据要求3，[2,2] 比 [4,1] 更能符合要求. 所以输出长度 L 为 2， 宽度 W 为 2。
-示例 2:
-
-输入: area = 37
-输出: [37,1]
-示例 3:
-
-输入: area = 122122
-输出: [427,286]
+score = arr[0]2 - arr[1]2 + arr[2]2 - arr[3]2 + ...
+在对 nums 重新排列后，返回其 最大可能的交替得分。
 
 
-提示:
 
-1 <= area <= 107
+示例 1：
+
+输入： nums = [1,2,3]
+
+输出： 12
+
+解释：
+
+nums 的一种可行重排为 [2,1,3]，该排列在所有可能重排中给出了最大交替得分。
+
+交替得分计算如下：
+
+score = 22 - 12 + 32 = 4 - 1 + 9 = 12
+
+示例 2：
+
+输入： nums = [1,-1,2,-2,3,-3]
+
+输出： 16
+
+解释：
+
+nums 的一种可行重排为 [-3,-1,-2,1,3,2]，该排列在所有可能重排中给出了最大交替得分。
+
+交替得分计算如下：
+
+score = (-3)2 - (-1)2 + (-2)2 - (1)2 + (3)2 - (2)2 = 9 - 1 + 4 - 1 + 9 - 4 = 16
+
+
+
+提示：
+
+1 <= nums.length <= 105
+-4 * 104 <= nums[i] <= 4 * 104
  */
 #include <vector>
-#include <cmath>
 #include <algorithm>
 #include <iostream>
 using namespace std;
-
+//排序+双指针
 class Solution
 {
 public:
-    vector<int> constructRectangle(int area)
+    long long maxAlternatingSum(vector<int> &nums)
     {
-        vector<int> ret(2, 0);
-        // 从half开始倒序遍历找到最大的宽
-        int half = static_cast<int>(sqrt(area));
-        for (int k = half; k > 0; --k)
-        {
-            double width = area * 1.0 / k;
-            if (width == static_cast<int>(width))
-            {
-                ret[0] = static_cast<int>(width);
-                ret[1] = k;
-                break;
-            }
-        }
+        size_t size = nums.size();
+        if (size == 1)
+            return nums[0] * nums[0];
+        long long ret = 0;
+        sort(nums.begin(), nums.end(), [](const int &x, const int &y)
+             { return abs(x) > abs(y); });
+        int left, right;
+        for (left = 0, right = size - 1; left < right; ++left, --right)
+            ret += nums[left] * nums[left] - nums[right] * nums[right];
+        if (left == right)
+            ret += nums[left] * nums[left];
         return ret;
     }
 };
 
 // int main()
 // {
-//     int area = 122122;
+//     // vector<int> nums{1, 2, 3};
+//     vector<int> nums{1,-1,2,-2,3,-3};
 //     Solution sl;
-//     const auto &vc = sl.constructRectangle(area);
-//     for_each(vc.begin(), vc.end(), [](const int x)
-//              { cout << x << " "; });
-//     cout << endl;
+//     cout << sl.maxAlternatingSum(nums) << endl;
 //     return 0;
 // }

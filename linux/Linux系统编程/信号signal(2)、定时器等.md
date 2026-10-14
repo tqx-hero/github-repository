@@ -589,7 +589,17 @@ union sigval_t{
 		8、pthread_mutex_lock (3), pthread_cond_wait (3) 以及相关 API。条件变量等待、互斥锁阻塞获取。pthread 同步原语，支持 SA_RESTART。
 		9、POSIX 信号量 sem_wait (3), sem_timedwait (3)（Linux2.6.22 之后；旧版本永远 EINTR）
 			注意是：POSIX semaphore（sem_t），不是 System V semop！semop 属于 System V，SA_RESTART 无效。
-		10、inotify 文件描述符上的 read (2)（Linux3.8 之后；旧版本永远 EINTR）
+		10、inotify 文件描述符上的 read (2)（Linux3.8 之后；旧版本永远 EINTR）.
+		
+	下列接口在被信号处理函数中断后永远不会重启，无论是否设置 SA_RESTART；一旦被信号处理函数中断，这些接口总会返回 EINTR 错误：
+		1、“输入类” 套接字接口：当通过 setsockopt (2) 在套接字上设置超时（SO_RCVTIMEO）时，包括 accept (2)、recv (2)、recvfrom (2)、recvmmsg (2)（timeout 参数非空的场景）以及 recvmsg (2)。
+		2、“输出类” 套接字接口：当通过 setsockopt (2) 在套接字上设置超时（SO_RCVTIMEO）时，包括 connect (2)、send (2)、sendto (2) 以及 sendmsg (2)。
+		3、用于等待信号的接口：pause (2)、sigsuspend (2)、sigtimedwait (2)、sigwaitinfo (2)。
+		4、文件描述符多路复用接口：epoll_wait (2)、epoll_pwait (2)、poll (2)、ppoll (2)、select (2)、pselect (2)。
+		5、System V 进程间通信接口：msgrcv (2)、msgsnd (2)、semop (2)、semtimedop (2)。
+		6、休眠接口：clock_nanosleep (2)、nanosleep (2)、usleep (3)。
+		7、io_getevents(2)。
+		8、sleep (3) 函数若被信号处理函数中断同样不会重启，但该函数会返回成功，返回值为剩余未休眠的秒数。
 6、SA_SIGINFO：
 	#define SA_SIGINFO 0x00000004
 	开启选项：使用struct sigaction中的sa_sigaction函数；

@@ -92,7 +92,7 @@ int shmget(key_t key, size_t size, int shmflg);
   			使用此标志时，shmaddr 不允许传 NULL。
   	return:
   		成功： 返回绑定的进程逻辑地址。
-  		失败： 返回 (void *) -1
+  		失败： 返回 (void *) -1,错误码在errno
   */
   void *shmat(int shmid, const void *shmaddr, int shmflg);
   ```

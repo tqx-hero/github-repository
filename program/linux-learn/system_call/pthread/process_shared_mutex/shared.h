@@ -13,8 +13,9 @@
 #include <signal.h>
 #define PRO_COUNT 2
 #define SHMAT_FAIL ((void*) -1)
-#define PRINT_TOTAL_SIZE 1000
+#define PRINT_TOTAL_SIZE 10000
 #define THREAD_PRINT "thread_print"
+#define PTHREAD_COUNT 5
 
 typedef struct {
         pthread_mutex_t lock;

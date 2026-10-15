@@ -37,9 +37,17 @@ int main(int argc,char** argv){
 		goto fail_ret;
 	}
 	//创建子线程执行打印任务
-	pthread_t pth;
-	pthread_create(&pth,NULL,th_handler,shm_ptr); //将共享内存的地址以传参形式传给子线程
-	pthread_join(pth,NULL);
+	pthread_t pth[PTHREAD_COUNT];
+	int i,ret,j;
+	for(i=0;i<PTHREAD_COUNT;++i){
+		if(ret = pthread_create(&pth[i],NULL,th_handler,shm_ptr)){ //将共享内存的地址以传参形式传给子线程
+			fprintf(stderr,"创建子线程失败,错误码 = %d\n",ret);
+			break;
+		}
+	}
+	printf("已创建子进程个数 = %d\n",i);
+	for(j=0;j<i;++j)
+		pthread_join(pth[j],NULL);
 	printf("全部打印完成，子进程[%d]正在退出\n",pid);
 	//卸载共享内存映射关系
 	if(shmdt(shm_ptr)){

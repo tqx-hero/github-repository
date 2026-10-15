@@ -1995,4 +1995,128 @@
 
     
 
-29. 
+29. ##### 获取当前函数名：
+
+    2种写法都不需要头文件，是编译器在词法分析时自动生成的局部变量。
+
+    ```c
+    //C99标准写法，函数内隐式声明的static const char []
+    __func__
+    //GCC扩展老旧写法。 编译器内置扩展   
+    __FUNCTION__	
+    ```
+
+    
+
+30. ##### main函数的参数解析getopt(3):
+
+    getopt () 函数用于解析命令行参数。它的参数 argc 和 argv 是程序启动时传递给 main () 函数的参数个数与参数数组。argv 中以 `-` 开头（且不等于单独的 `-` 或 `--`）的元素是选项元素。该元素内的字符（除去开头的 `-`）为选项字符。如果重复调用 getopt ()，它会依次返回各个选项元素中的每一个选项字符。
+
+    变量 optind 是 argv 中下一个待处理元素的索引。系统会将该值初始化为 1。调用者可以将其重置为 1，重新扫描同一个 argv，或是在扫描新的参数向量时使用。
+
+    若 getopt () 找到下一个选项字符，就返回该字符，并更新外部变量 optind 和静态变量 nextchar，使得下一次调用 getopt () 可以从后续的选项字符或 argv 元素继续扫描。
+
+    当没有更多选项字符时，getopt () 返回 -1。此时 optind 指向 argv 中第一个非选项元素的索引。
+
+    optstring 是包含合法选项字符的字符串。如果某个字符后面紧跟冒号，代表该选项需要参数，getopt () 会将指向后续文本的指针存入 optarg，这段文本可以是同一个 argv 元素内的后续内容，或是下一个 argv 元素的内容。两个连续冒号代表该选项接收可选参数；如果当前 argv 元素内（也就是选项名所在的同一个单词里，例如 `-oarg`）带有文本，则该文本会存入 optarg，否则 optarg 置为 0。这是 GNU 的扩展特性。如果 optstring 中包含 W 且后面跟分号，那么 `-W foo` 会被当作长选项 `--foo` 处理。（POSIX.2 将 `-W` 选项保留给实现扩展使用。）该行为属于 GNU 扩展，glibc 2 之前的库不支持。
+
+    默认情况下，getopt () 在扫描过程中会重排 argv 的内容，最终让所有非选项参数排在末尾。该函数还实现了另外两种工作模式：如果 optstring 的首字符是 `+`，或者设置了环境变量 POSIXLY_CORRECT，那么一旦遇到非选项参数，选项解析就立即停止。如果 optstring 的首字符是 `-`，那么每一个非选项 argv 元素都会被当作编码为 1 的选项的参数来处理。（该模式供一类程序使用，这类程序允许选项和其他 argv 元素任意混排，并且需要区分二者的顺序。）特殊参数 `--` 会强制终止选项扫描，不受扫描模式影响。
+
+    在解析选项列表的过程中，getopt () 可以检测两类错误：(1) 出现了 optstring 中未定义的选项字符；(2) 缺少选项参数（例如命令行末尾的某个选项没有附带预期参数）。这类错误的处理与上报规则如下：
+
+    - 默认情况下，getopt () 会在标准错误输出打印错误信息，将出错的选项字符存入 optopt，并且函数返回 `?`。
+    - 如果调用者将全局变量 opterr 设置为 0，getopt () 就不会向stderr打印错误信息。调用者可以通过判断函数返回值是否为 `?` 来识别错误。（opterr 默认值非零。）
+    - 如果 optstring 的首字符（前面的 `+`、`-` 不计入）是冒号 `:`，getopt () 同样不会打印错误信息。除此之外，当出现缺少选项参数的错误时，函数返回 `:` 而非 `?`。调用者借此区分这两种不同类型的错误。
+
+    ```c
+    #include <unistd.h>
+    /**
+    	argc: main函数的第一个参数，代表参数个数(包含指令项)。
+    	argv：main函数的第二个参数，参数列表。
+    	optstring：选项的字符数组。
+    		1、如果第一个字符为：,定义了如果后面需要带关联值的选项没有关联值，返回值将返回:
+    		第一个字符不是:,上述情况将返回?。
+    		2、如果选项有参数，会将参数放入optarg。参数会选择该选项后面紧跟着的第一个指针。
+    		3、选项处理完毕时，函数返回-1.
+    		4、遇到无法识别的选项时，返回?。第一条就是避免与这种情况混淆产生的。
+    		5、如果一个选项需要带参数，该选项后面紧跟着:
+    	return：
+    		>0 : 返回的是当前选项的字符。
+    		-1 : 选项处理完毕。 
+    */
+    int getopt(int argc, char * const argv[],const char *optstring);
+    
+    //存放选项的参数(有参数的选项)
+    extern char *optarg;
+    //optind:选项的索引。
+    //opterr:如果调用者将全局变量 opterr 设置为 0，getopt () 就不会向stderr打印错误信息。调用者可以通过判断函数返回值是否为 `?` 来识别错误。（opterr 默认值非零。）
+    //optopt: 遇到无法识别的选项时，会将它放到optopt中
+    extern int optind, opterr, optopt;
+    ```
+
+    ###### demo:检测含有选项:lfr,其中f带有参数的选项集合
+
+    ```c
+    #include <unistd.h>
+    #include <stdio.h>
+    
+    int main(int argc,char** argv){
+            int opt;
+        	//①、设置的第一个字符:代表f这种有参数的选项没有参数时会返回':'
+            while((opt = getopt(argc,argv,":lf:r")) != -1){ 
+                    switch(opt){
+                            case 'l':
+                            case 'r':
+                                    printf("options : %c\n",opt);
+                                    break;
+                            case 'f':	//如果正常输出f，说明后面必然有参数，输出参数
+                                    printf("filename = %s\n",optarg);
+                                    break;
+                        case '?':	//①中已经设置了:,那?只会代表识别不出来的选项
+                                    printf("unkown option : %c\n",optopt);
+                                    break;
+                            default:        //除了以上所有的情况，就剩下默认的：，即带参数的选项没有带参数。
+                                    printf("option need a value\n");
+                                    break;
+                    }
+            }
+            return 0;
+    }
+    ```
+
+    输出结果：
+
+    ###### 第一种：-f有参数
+
+    ```bash
+    tqx@linux$ ./getopt -ilr "hi there" -f name -q 
+    unkown option : i	#optstring中没有i，所以不识别
+    options : l	
+    options : r
+    filename = name	#识别出的-f选项的参数
+    unkown option : q	#optstring中没有q，所以不识别
+    ```
+
+    ###### 第二种：-f没带参数，但是后面紧跟着选项
+
+    ```bash
+    tqx@linux$ ./getopt -ilr "hi there" -f  -q
+    unkown option : i	#前面的相同
+    options : l
+    options : r
+    filename = -q	#这里没带参数却紧跟着选项，会把后面的第一个指针指向的字符串当做参数
+    ```
+
+    ###### 第三种：-f后面什么都没有
+
+    ```bash
+    tqx@linux-ubuntu$ ./getopt -ilr "hi there" -f
+    unkown option : i
+    options : l
+    options : r
+    option need a value		#选项后面没检测到参数，返回:
+    ```
+
+    
+
+31. 

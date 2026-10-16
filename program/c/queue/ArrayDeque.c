@@ -3,66 +3,70 @@
 //
 
 #include "ArrayDeque.h"
-
 #include <stdio.h>
 
-_Bool isEmpty(ArrayDeque *queue) {
+_Bool arrayDeque_isEmpty(ArrayDeque *queue) {
     return queue->count == 0;
 }
 
-void initQueue(ArrayDeque *queue) {
-    queue->count = 0;
-    queue->rear = 0;
-    queue->front = 0;
+void arrayDeque_initQueue(ArrayDeque *queue) {
+    memset(queue,0,sizeof(ArrayDeque));
 }
 
-Object poll(ArrayDeque *queue) {
-    if (!isEmpty(queue)) {
-        Object obj = queue->obj[queue->front];
+int arrayDeque_poll(ArrayDeque *queue,void* obj,size_t size) {
+    if (!arrayDeque_isEmpty(queue)) {
+	void* target = queue->obj[queue->front];
+	memcpy(obj,target,size);
+	//释放这个下标的内存空间
+	free(target);
+	queue->obj[queue->front] = NULL;
         queue->count--;
-        queue->front = (queue->front + 1) & (MAX_SIZE - 1);
-        return obj;
+        queue->front = (queue->front + 1) & (ARRAYDEQUE_MAX_SIZE - 1);
+        return 0;
     }
-    Object obj = {-1};
-    return obj;
+    obj = NULL;
+    return -1;
 }
 
-Object peek(ArrayDeque *queue) {
-    if (!isEmpty(queue))
-        return queue->obj[queue->front];
-    Object obj = {-1};
-    return obj;
+int arrayDeque_peek(ArrayDeque *queue,void* obj,size_t size) {
+    if (!arrayDeque_isEmpty(queue)){
+	memcpy(obj,queue->obj[queue->front],size);
+        return 0;
+    }
+    obj = NULL;
+    return -1;
 }
 
-_Bool isFull(ArrayDeque *queue) {
-    return queue->count == MAX_SIZE;
+_Bool arrayDeque_isFull(ArrayDeque *queue) {
+    return queue->count == ARRAYDEQUE_MAX_SIZE;
 }
 
-int size(ArrayDeque *queue) {
+int arrayDeque_size(ArrayDeque *queue) {
     return queue->count;
 }
 
-int offer(ArrayDeque *queue, Object obj) {
-    if (!isFull(queue)) {
-        queue->obj[queue->rear] = obj;
-        queue->rear = (queue->rear + 1) & (MAX_SIZE - 1);
+int arrayDeque_offer(ArrayDeque *queue, void* obj,size_t size) {
+    if (!arrayDeque_isFull(queue)) {
+	void* ptr= (void*) malloc(size);
+	if(!ptr){
+		fprintf(stderr,"malloc error\n");
+		exit(-1);
+	}
+	queue->obj[queue->rear] = ptr;
+	memcpy(queue->obj[queue->rear],obj,size);
+        queue->rear = (queue->rear + 1) & (ARRAYDEQUE_MAX_SIZE - 1);
         queue->count++;
-        return 1;
+        return 0;
     }
     return 0;
 }
 
-// int main() {
-//     ArrayDeque queue = {};
-//     int i = 0;
-//     for (i = 0; i < 64; ++i) {
-//         Object obj = {i};
-//         offer(&queue, obj);
-//     }
-//
-//     for (i = 0; i < 10; ++i) {
-//         Object obj = poll(&queue);
-//         printf("%d\n", obj.num);
-//     }
-//     return 0;
-// }
+int arrayDeque_destory(ArrayDeque* queue){
+	int front = queue->front,rear = queue->rear;
+	while( front & (ARRAYDEQUE_MAX_SIZE - 1) != rear){
+		free(queue->obj[front]);
+		queue->obj[front] = NULL;
+		front = (front + 1) & (ARRAYDEQUE_MAX_SIZE -1);
+	}
+	return 0;
+}

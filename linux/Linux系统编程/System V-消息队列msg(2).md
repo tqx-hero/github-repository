@@ -3,6 +3,7 @@
 - ##### 生成消息队列的唯一标识key(man 3 ftok):
 
   ```c
+  #include <sys/types.h>
   #include <sys/ipc.h>
   /**
   	利用文件名与签名生成消息队列的唯一标识key
@@ -50,7 +51,7 @@
   		除了添加IPC_CREAT，必须给消息队列添加权限，(与open系统调用的权限相同，但是没有可执行权限，所以可以位或读写权限),例如： IPC_CREAT | 0666，标识该消息队列对所有用户都是读写权限，不存在则创建，存在则打开。
   		
   	return:
-  		-1: 创建失败。
+  		-1: 创建失败。错误码errno
   		非负数: 创建成功，返回值为消息队列的标识。
   */
   int msgget(key_t key, int msgflg);

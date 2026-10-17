@@ -16,6 +16,25 @@
 
 - ###### 创建、开启共享内存shmget(2):
 
+  
+
+  ```c
+  #include <sys/types.h>
+  #include <sys/ipc.h>
+  /**
+  	利用文件名与签名生成消息队列的唯一标识key
+  	pathname: 文件名称，文件必须存在
+  	proj_id: 签名
+  	return:
+  		-1: 生成失败，错误码errno
+  		非-1：成功，返回唯一标识(标识为有符号32位整数)
+  */
+  key_t ftok(const char *pathname, int proj_id);
+  typedef int key_t;
+  ```
+
+  
+
 ```c
 #include <sys/ipc.h>
 #include <sys/shm.h>

@@ -287,9 +287,15 @@
    #include <sys/types.h>
    #include <sys/stat.h>
    #include <unistd.h>
+   typedef long int off_t;
    //获取文件属性，主要包括文件类型、权限、大小等等
    //return : 0 查询成功，结果放入stat结构体；-1：失败，错误信息码保存在errno
    int stat(const char *pathname, struct stat *statbuf);
+   //通过文件描述符获取
+   int fstat(int fd, struct stat *statbuf);
+   //获取的是链接文件的属性，而不是它指向的源文件。
+   int lstat(const char *pathname, struct stat *statbuf);
+   
    //stat结构体：
    struct stat {
           dev_t     st_dev;         /* ID of device containing file */
@@ -713,6 +719,63 @@
     pid_t fork(void);
     //fork时会对父进程的PCB、栈、堆、代码段等所有数据都会进行拷贝。注意，在Linux下，如果缓冲区内有数据没有取出，通过fork()创建出的子进程会复制缓冲区，这种情况缓冲区内数据也会被拷贝。
     ```
+
+    #### fork () 复制内容 & 时机（Linux，POSIX）:
+
+    #### 时机
+
+    **调用 `fork()` 的瞬间，在内核里完成子进程 PCB 创建，然后复制父进程的资源；不是 fork 返回之后复制，是系统调用内部完成。**
+
+    > `fork` 一次调用，两次返回：内核创建子进程，拷贝资源，然后父子各自返回。父返回 pid>0，子返回 0。
+
+    #### 核心：**写时复制 COW（Copy-On-Write）**
+
+    现代 Linux 不是 fork 就把整个物理内存拷贝一份！
+
+    > fork 时：**只复制页表，不复制物理内存页。父子共享同一份物理页，页表标记为「写保护」**。
+    >
+    >  时机：**父子任意一方尝试写这个页面的时候，内核才真正复制该物理页**。只读访问一直共享。
+
+    ------
+
+    #### fork 会复制哪些东西（内核复制，fork 系统调用期间）
+
+    1. **进程描述符 task_struct，PID 独立** 子进程是全新进程，有独立 pid、独立 PCB，独立进程状态。
+
+    2. 文件描述符表（fd table）
+
+       复制一份 fd 数组，
+
+       fd 指向同一个内核 file 结构体
+
+       （文件 / 共享内存 / 管道，引用计数 + 1）
+
+       - 共享内存shm_open 的 fd：子拿到相同 fd，指向同一个 shm 内核对象。
+       - 父子各自 close (fd) 只是减少 file 引用计数，不会立刻销毁底层对象。
+
+    3. 虚拟地址空间的页表
+
+       （COW 机制，物理页不拷贝）
+
+       - 代码段 (.text)：只读，永久共享，不会触发 COW
+       - 全局变量、堆、栈：页表复制，页面标记写保护；**写的时候才拷贝物理页**
+       - mmap 映射区域：
+         - `MAP_SHARED`：底层物理对象共享；哪怕写，**不会 COW**，直接修改共享底层内存
+         - `MAP_PRIVATE`：写的时候触发 COW，父子各自副本
+
+    4. **信号处理方式（signal handler）** 信号处理函数指针复制；信号的未决信号集、信号掩码会**复制一份副本**。
+
+    5. **工作目录、umask、用户 ID / 组 ID**
+
+    6. **环境变量、命令行参数**：存在父进程虚拟内存，COW 方式共享。
+
+    #### fork **不会复制 / 不会继承** 的内容
+
+    1. **父进程的 pending 信号（未决信号）不会传给子进程**；子进程未决信号集清空。
+    2. 父进程的定时器、异步 IO 上下文。
+    3. 线程：**fork 只复制调用 fork 的那个线程！父进程里其他线程不会出现在子进程。**
+
+    > 多线程环境 fork，子进程只有 fork 那个线程存活，其他线程直接消失，锁状态很容易错乱。所以多线程环境fork慎用!
 
     ###### DEMO:
 

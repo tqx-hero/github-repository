@@ -1,6 +1,11 @@
 #include "threadpool.h"
 #include <errno.h>
 #define TOSTRING_ERRNO strerror(errno)
+#define GOTO_EXIT_2(__FORMAT,__MSG) sprintf(errbuf,__FORMAT "%s",__MSG); \
+				goto fail_ret
+
+#define GOTO_EXIT(__MSG) GOTO_EXIT_2("",__MSG) 
+			
 typedef struct {
 	threadpool_t* pool;
 	work_t work;
@@ -17,18 +22,15 @@ threadpool_t* threadpool_init(threadpool_t* pool,char * errbuf){
 	threadpool_t* retp;
 	//参数校验
 	if(!pool){
-		sprintf(errbuf,"%s",PARAM_NOT_NULL("pool"));
-		goto fail_ret;
+		GOTO_EXIT(PARAM_NOT_NULL("pool"));
 	}
 	//消息队列大小不能为0
 	if(pool->mq_size <= 0){
-		sprintf(errbuf,"%s",PARAM_NOT_NULL("mq_size"));
-		goto fail_ret;
+		GOTO_EXIT(PARAM_NOT_NULL("mq_size"));
 	}
 	//最大线程数一定要大于等于核心线程数
 	if(pool->th_msize < pool->th_csize){
-		sprintf(errbuf,"%s","th_msize must not be less than th_csize !");
-		goto fail_ret;
+		GOTO_EXIT("th_msize must not be less than th_csize !");
 	}
 	if(pool->mq_size > THREADPOOL_MQ_MSIZ)
 		pool->mq_size = THREADPOOL_MQ_MSIZ;
@@ -44,8 +46,7 @@ threadpool_t* threadpool_init(threadpool_t* pool,char * errbuf){
 	//使用柔性数组填充线程数组，合并申请线程池的内存空间
 	retp = (threadpool_t*) malloc(sizeof(threadpool_t) + pool->th_msize * sizeof(pthread_t));	
 	if(!retp){
-		sprintf(errbuf,"malloc threadpool error: %s",TOSTRING_ERRNO);
-		goto fail_ret;
+		GOTO_EXIT_2("malloc threadpool error: ",TOSTRING_ERRNO);
 	}
 	//将参数悉数拷贝到内存空间
 	retp-> th_msize = pool->th_msize;
@@ -118,8 +119,7 @@ create_thread_start:
 	//线程数量已超过最大允许数量，直接丢弃
 	if(pool->cur_th_size >= pool->th_msize){
 		pthread_mutex_unlock(&pool->lockinfo.lock);
-		strcpy(errbuf,"线程池繁忙,请稍后再提交任务!");
-		goto fail_ret;
+		GOTO_EXIT("线程池繁忙,请稍后再提交任务!");
 	}
 	//当小于核心线程数 || 需要创建临时线程时:
 	if(newtemp || pool->cur_th_size < pool-> th_csize){
@@ -127,15 +127,13 @@ create_thread_start:
 		pthread_mutex_unlock(&pool->lockinfo.lock);
 		worker_t* worker = (worker_t*) malloc(sizeof(worker_t));
 		if(!worker){
-			sprintf(errbuf,"malloc error: %s",TOSTRING_ERRNO);
-			goto fail_ret;
+			GOTO_EXIT_2("malloc error: ",TOSTRING_ERRNO);
 		}
 		worker->pool = pool;
 		memcpy(&worker->work,work,sizeof(work_t));//拷贝要执行的函数以及参数到结构体
 		//创建新线程，执行任务
 		if(pthread_create(&thread,NULL,worker_handler,worker)){
-			sprintf(errbuf,"create thread error: %s",TOSTRING_ERRNO);
-			goto fail_ret;
+			GOTO_EXIT_2("create thread error: ",TOSTRING_ERRNO);
 		}
 		/*
 		//设置线程自动分离属性

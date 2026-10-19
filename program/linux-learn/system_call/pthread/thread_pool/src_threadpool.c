@@ -30,7 +30,7 @@ void init_src(){
 	pl.wait_time = THREADPOOL_WAIT_MTIME;
 	pl.rejected_strategy = DROP_THIS;
 	if(!(pool = threadpool_init(&pl,errbuf))){
-		fprintf(stderr,errbuf);
+		fprintf(stderr,"%s\n",errbuf);
 		exit(-1);
 	}
 	printf("资源初始化完成\n");
@@ -90,13 +90,18 @@ void sigint_handler(int signum){
 }
 //回收资源
 void destory_src(){
-	pthread_mutex_destroy(&lock);
+	printf("已进入资源回收阶段...\n");
+	//销毁线程池
+	if(threadpool_destory(pool,errbuf))
+	{
+		fprintf(stderr,"%s\n",errbuf);
+		exit(-1);
+	}
+	if(pthread_mutex_destroy(&lock))
 	pthread_cond_destroy(&empty);
 	pthread_cond_destroy(&full);
 	//回收消息队列
 	arrayDeque_destory(msgque);
-	//销毁线程池
-	threadpool_destory(pool);
 }
 
 int main(){
@@ -122,7 +127,7 @@ int main(){
 			work.th_handler = consumer;
 			work.arg = NULL;
 		}
-			threadpool_submit(pool,work,errbuf);
+			threadpool_submit(pool,&work,errbuf);
 	}
 	while(running)
 		sleep(10);

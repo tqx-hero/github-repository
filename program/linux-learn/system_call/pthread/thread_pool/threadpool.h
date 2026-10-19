@@ -28,7 +28,7 @@ enum{
 	DROP_THIS,
 	DROP_MQ_HEAD,
 	BLOCK,
-	REJECT_RETURN;
+	REJECT_RETURN
 };
 //定义同步相关的锁、条件变量
 
@@ -49,7 +49,7 @@ typedef struct {
 	size_t cur_th_size; //当前线程数
 	mq_t* mqp;	//消息队列的地址
 	LOCK_T lockinfo; //线程池的同步措施信息	
-	pthread_mutex_t curth_lock; //修改当前线程数的锁
+//	pthread_mutex_t curth_lock; //修改当前线程数的锁
 	pthread_t threads[];//所有线程的数组
 } threadpool_t;
 

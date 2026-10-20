@@ -2182,4 +2182,91 @@
 
     
 
-31. 
+31. ##### getopt_long(3):长命令解析
+
+    用于解析长命令 " -- " 与短指令:
+
+    ```c
+    #include <getopt.h>
+    /**
+    	argc: main函数第一个参数，表示参数的个数
+    	argv:main函数第二个参数，参数列表。
+    	optstring: 要解析的短选项字符数组，详情参考上面介绍的getopt部分。
+    	longopts:长选项的列表。结构体说明在下面。注意：该数组的最后一个元素必须全部置0。
+    	longindex: 不为NUll时，解析完成后会在该地址拷贝该长选项在longopts数组中的索引。为NULL就不会拷贝。
+    		
+    */
+    int getopt_long(int argc, char * const argv[],const char *optstring,
+                    const struct option *longopts, int *longindex);
+    int getopt_long_only(int argc, char * const argv[],const char *optstring,
+                         const struct option *longopts, int *longindex);
+    
+    //注意：选项数组的每一项val必须要在短选项字符串optstring中存在，这样长命令才能在短命令中找到。
+    struct option {
+        const char *name;//长选项的名称。匹配时可使用name的前几个字符缩写。入name = "initable",可识别 --in,--init等
+        //选项是否带参数。no_argument(0)：不带；required_argument(1)：必须带；optional_argument(2)：可选带或不带。
+        int         has_arg;
+        int        *flag;//指定长选项的结果返回方式。若 flag 为 NULL，则 getopt_long () 返回 val。
+        int         val;//待返回的值(flag=NULL时)，或是存入 flag 所指向变量的值(flag != NULL)。
+    };
+    ```
+
+    > ​		getopt_long () 函数的功能与 getopt () 类似，区别在于它还支持以两个短横线开头的长选项。（如果程序仅使用长选项，那么 optstring 应设为空字符串（""），而不是 NULL。）长选项名可以使用缩写，前提是该缩写具有唯一性，或是与某个已定义选项完全匹配。长选项可以携带参数，格式为 --arg=param 或者 --arg param。
+
+    getopt_long_only () 与 getopt_long () 类似，但单个短横线`-`和双短横线`--`都可以用来标识长选项。如果以`-`开头（而非`--`）的参数无法匹配任意长选项，但可以匹配某个短选项，则会按短选项解析。
+
+    
+
+    demo：
+
+    ```c
+    #include <stdio.h>
+    #include <unistd.h>
+    #include <stdlib.h>
+    #include <string.h>
+    #include <getopt.h>
+    //getopt_long函数解析选项与参数
+    int main(int argc,char** argv){
+            int opt;
+            struct option tion[]={
+                    {"initialize",no_argument,NULL,'i'},//除了最后一个，所有长选项的val必须能在短选项字符串中找到
+                    {"list",no_argument,NULL,'l'},
+                    {"file",required_argument,NULL,'f'},
+                    {"restart",0,NULL,'r'},
+                    {0,0,0,0}//必须以全0结尾
+            };
+    
+            while((opt = getopt_long(argc,argv,":if:lr",tion,NULL)) != -1){
+                    switch(opt){
+                            case 'i':
+                            case 'l':
+                            case 'r':
+                                    printf("option = %c\n",opt);
+                                    break;
+                            case 'f':
+                                    printf("argumet = %s\n",optarg);
+                                    break;
+                            case '?':
+                                    printf("invalid option = %c\n",optopt);
+                                    break;
+                            default :
+                                    printf("option need argument.\n");
+                                    break;
+                    }
+            }
+            return 0;
+    }
+    ```
+
+    
+
+    输出结果：
+
+    ```bash
+    tqx@linux-ubuntu$ ./getopt_long --file=longtype -f shorttype --l -r --init
+    argumet = longtype
+    argumet = shorttype
+    option = l
+    option = r
+    option = i
+    ```

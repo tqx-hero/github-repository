@@ -181,4 +181,344 @@
 
   该文件中的所有输出都在终端正常显示，不受重定向的影响了，说明直接打开`/dev/tty`文件对其进行读写等同于对终端进行读写，验证了上面的观点。
 
+- #### 文件锁：
+
+  利用系统调用open的原子性，当O_CREAT | O_EXCL时，如果已经存在这个文件，会失败返回-1的特性：
+
+  ```c
+  #include <stdio.h>
+  #include <fcntl.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include <unistd.h>
+  #define FILE_LOCK_NAME "./LOCK"
+  //使用 O_CREAT | O_EXCL 的原子性操作特性创建文件锁
+  int main(){
+          int fd ;
+          pid_t pid = getpid();
+          while(1){
+                  //如果fd获取失败，说明已经有其他进程使用该锁
+                  if((fd = open(FILE_LOCK_NAME,O_RDONLY | O_CREAT | O_EXCL,0444)) == -1){
+                          //fprintf(stderr,"[%d]: 文件锁已被占用!\n",pid);
+                          //sleep(3);
+                          continue;
+                  }
+                  //fd获取成功，加锁成功，下面是执行临界区代码
+                  fprintf(stdout,"文件加锁成功,进程：[%d]正在执行临界区代码..\n",pid);
+                  sleep(1);
+                  close(fd);
+                  unlink(FILE_LOCK_NAME);//一定要注意删除文件，相当于解锁
+          }
+          return 0;
+  }
+  ```
+
+  输出：
+
+  ```bash
+  $ ./filelock & ./filelock #直接启动两个进程，后台开启一个
+  
+  [1] 175781
+  文件加锁成功,进程：[175782]正在执行临界区代码..	#可以发现两个进程互相争抢文件锁。
+  文件加锁成功,进程：[175781]正在执行临界区代码..
+  文件加锁成功,进程：[175782]正在执行临界区代码..
+  文件加锁成功,进程：[175781]正在执行临界区代码..
+  文件加锁成功,进程：[175782]正在执行临界区代码..
+  文件加锁成功,进程：[175781]正在执行临界区代码..
+  文件加锁成功,进程：[175782]正在执行临界区代码..
+  文件加锁成功,进程：[175781]正在执行临界区代码..
+  文件加锁成功,进程：[175782]正在执行临界区代码..
+  文件加锁成功,进程：[175781]正在执行临界区代码..
+  文件加锁成功,进程：[175782]正在执行临界区代码..
+  文件加锁成功,进程：[175781]正在执行临界区代码..
+  文件加锁成功,进程：[175782]正在执行临界区代码..
+  ```
+
+  文件锁实现非常简单，但是锁的粒度偏大，尤其对于大型文件，高并发场景下，这样就引出了分段锁。将文件的不同内存段进行按需锁定，减小锁的粒度，减小线程之间的竞态。
+
+- #### 使用`fcntl(2)`对文件进行锁定:
+
+  ***注意：当使用文件锁之后，一定要使用系统调用`read(2)`、`write(2)`对文件进行操作，千万不要使用带缓冲区的I/O函数`fread/fwrite`,因为这些函数存在缓冲区，在读取文件时会按照块进行读取，会出现实际读到的字节数超过当前需要的字节数(比如需要获取前100个字节，`fread`可能会读取1024个字节，并把剩余字节都放在缓冲区)，当下次再次读取数据时，如果没有记得刷新缓冲区，获取下100个字节就会从缓冲区中读取，而不会继续系统调用读取文件。在多进程存在竞态操作同一个文件的情况下会导致数据不一致的情况。***
+
+  ###### 同一个进程的多线程是共享文件锁的，千万不要在同一进程中的多个线程中使用文件锁，要使用线程同步措施(`mutex`、`cond`、`semaphore`等)
+
+  ```c
+  #include <unistd.h>
+  #include <fcntl.h>
+  //读锁、写锁、解锁的宏定义
+  # define F_RDLCK           0 
+  # define F_WRLCK           1 
+  # define F_UNLCK           2
+  //文件基准位置的宏定义：
+  # define SEEK_SET      0
+  # define SEEK_CUR      1
+  # define SEEK_END      2
+  
+  //函数原型，cmd参数后面还需添加一个参数：struct flock* fl
+  int fcntl(int fd, int cmd, ... /* arg */ );
+  /**
+  	给文件加解锁(分段锁)，当描述符关闭，锁自动释放
+  	成功：0
+  	失败：-1，设置errno。注意，如果内核检测到了出现死锁，会返回错误，需要对死锁情况进行释放锁的操作。
+  */
+  int fcntl(int fd, int cmd, struct flock* flock_structure );
+  /**
+  	该结构体的 l_whence、l_start 和 l_len 字段用于指定我们希望锁定的字节范围。可以锁定文件末尾之后的字节，但不能锁定文件起始位置之前的字节。
+  	若解锁时的区间比加锁区间小，内核只会释放这两个区间重叠部分的那段内存的锁，不重叠的部分仍然是有锁状态。
+  	若解锁范围比加锁区间更大，包含了本没有锁的内存区域，内核只会把有锁的区间解锁，没锁的区间不受影响。
+  */
+  struct flock {
+      short l_type;    /* 锁类型：F_RDLCK(读锁), F_WRLCK(写锁), F_UNLCK(解锁) */
+      short l_whence;  /* l_start 的基准位置：SEEK_SET, SEEK_CUR, SEEK_END */
+      off_t l_start;   /* 锁起始偏移（相对于 l_whence） */
+      off_t l_len;     /* 锁定的字节长度；0 代表锁到文件末尾 */
+      pid_t l_pid;     /* 持有锁的进程PID，仅 F_GETLK 查询时内核填充 */
+      // ... 后面还有一些扩展成员，不同平台略有差异
+  };
+  ```
+
+  ##### 对于锁的结构体`struct flock`,字段解释如下：
+
+  > 1、`l_type` 字段可用于对文件施加读锁（F_RDLCK）或写锁（F_WRLCK）。多个进程可在同一文件区域持有读锁（共享锁），但同一时刻仅允许一个进程持有写锁（排他锁）。排他锁会阻止其他所有锁，无论是共享锁还是排他锁。
+  >
+  > ​	单个进程在同一个文件区域上只能持有一种类型的锁；如果对已加锁区域施加新锁，则原有锁会转换为新的锁类型。（如果新锁指定的字节范围和原有锁范围不完全重合，这类锁转换可能会对原有锁进行拆分、缩减或是合并操作。）
+
+  > 2、`l_whence`为基准位置，取值有三个：
+  >
+  > SEEK_SET: 文件起始位置；
+  >
+  > SEEK_CUR:当前位置；
+  >
+  > SEEK_END：文件末尾。
+
+  > 3、`l_start`: 相对于基准位置`l_whence`而言的偏移量，也是锁的起始偏移量。只要最终偏移量不会落在文件起始位置之前，l_start 可以取负值。
+
+  > 4、`l_len` 指定待锁定的字节数量。
+  >
+  > 若 `l_len` 为正数，则锁定范围覆盖从 `l_start` 开始，到 `l_start+l_len-1`（包含该字节）为止的所有字节。
+  >
+  > 将 `l_len` 设置为0具有特殊含义：锁定由 `l_whence` 和 `l_start` 指定位置开始，一直到文件末尾的全部字节，无论后续文件增大到多大。
+  >
+  > `POSIX.1-2001` 允许（但不强制要求）实现支持负的 `l_len` 值；当 `l_len` 为负数时，锁描述的区间覆盖从 `l_start+l_len` 到 `l_start-1`（包含该字节）的字节，也就是相对于`l_start`往前`l_len`个字节。
+  >
+  > Linux 自内核版本2.4.21与2.5.49起支持该特性。
+
+  
+
+  > Linux 实现了符合 `POSIX` 标准的传统（与进程关联的）UNIX 记录锁。如需具备更优语义、Linux 特有的替代方案，请参阅下文关于打开文件描述符锁的说明。
+  > `F_SETLK`、`F_SETLKW` 和 `F_GETLK` 用于获取、释放以及检测记录锁（也称作字节范围锁、文件段锁或文件区域锁）是否存在。第三个参数 lock 是一个结构体指针，该结构体至少包含下列字段（字段顺序未做规定）。
+
+  ##### 锁的命令`cmd`参数有如下选项：
+
+  ###### `F_SETLK (struct flock *)`:不阻塞版的加锁、解锁
+
+  > ​	对lock结构体中l_whence、l_start和`l_len`字段指定的字节区域执行加锁（当l_type为`F_RDLCK`或`F_WRLCK`时）或解锁（当l_type为`F_UNLCK`时）操作。如果另一个进程持有冲突锁，该调用返回-1，并将`errno`设置为`EACCES`或`EAGAIN`。（不同实现在此场景返回的错误有所差异，因此POSIX标准要求可移植应用程序需要同时检查这两种错误。）
+
+  ###### `F_SETLKW (struct flock *)`:阻塞版的加锁、解锁
+
+  > ​	功能同`F_SETLK`，但如果文件上存在冲突锁，则会阻塞等待该锁释放。若等待过程中捕获到信号，该调用会被中断，（信号处理函数返回后）立即返回（返回值为-1，`errno`设置为`EINTR`；参见signal(7)）。
+
+  ###### `F_GETLK (struct flock *)`:获取锁的状态(不会加锁，仅获得当前锁状态)
+
+  > ​	调用传入时，lock结构体描述我们期望在文件上施加的锁。如果该锁可以成功施加，`fcntl()`并不会实际加锁，而是在lock结构体的l_type字段返回`F_UNLCK`，结构体其余字段保持不变。注意：调用方查看该返回信息时，信息可能已经失效(锁存在竞态)。
+  >
+  > ​	倘若存在一个或多个互斥锁导致本次上锁操作无法执行，`fcntl ()`会在 lock 的 l_type、l_whence、l_start 以及 l_len 字段中返回其中一个冲突锁的详细信息。若冲突锁是传统的（与进程关联的）记录锁，则 `l_pid` 字段会设置为持有该锁进程的进程 ID。若冲突锁是打开文件描述符锁，则 l_pid 设为 - 1。请注意，调用者查看返回信息时，该信息可能已经失效。
+
+  ##### 测试锁：
+
+  程序`segmentlock1.c`是创建文件，给文件的0~127这128个字节施加读锁，256~511这256个字节施加写锁：
+
+  ```c
+  #include <fcntl.h>
+  #include <unistd.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #define FILE_NAME "./segment.lock"
+  #define FAIL_EXIT(__MSG,__FD) perror(__MSG); \
+                          if(__FD >= 0) \
+                                  close(__FD); \
+                          exit(EXIT_FAILURE)
+  //使用fcntl()设置分段锁
+  int main(){
+          int fd;
+          if((fd = open(FILE_NAME,O_RDWR | O_CREAT | O_APPEND,0666))== -1){
+                  FAIL_EXIT("open file error",-1);
+          }
+          //设置文件大小
+          ftruncate(fd,1024);
+          //设置分段锁
+          struct flock region1,region2;
+          //第一个区间0~127，128个字节设置读锁，即共享锁
+          region1.l_type = F_RDLCK;
+          region1.l_whence = SEEK_SET;
+          region1.l_start = 0;
+          region1.l_len = 128;
+          //第二个区间 256~511,256个字节设置读锁
+          region2.l_type = F_WRLCK;
+          region2.l_whence = SEEK_SET;
+          region2.l_start = 256;
+          region2.l_len = 256;
+  
+          if(fcntl(fd,F_SETLKW,&region1)){
+                  FAIL_EXIT("lock region2 error",fd);
+          }
+          if(fcntl(fd,F_SETLKW,&region2)){
+                  FAIL_EXIT("lock region2 error",fd);
+          }
+          printf("分段锁加锁成功!\n");
+          sleep(10);
+          printf("10s时间到，释放写锁\n");
+          region2.l_type = F_UNLCK;
+          if(fcntl(fd,F_SETLKW,&region2)){
+                  FAIL_EXIT("unlock region2 error",fd);
+          }
+          printf("释放写锁成功.\n");
+          sleep(60);
+          printf("60s时间到，进程正在退出.\n");
+          close(fd);
+          //unlink(FILE_NAME);
+          return 0;
+  }
+  ```
+
+  文件`segmentlock2.c`进行各种测试：
+
+  ```c
+  #include <fcntl.h>
+  #include <unistd.h>
+  #include <stdio.h>
+  #include <string.h>
+  #include <stdlib.h>
+  #define FILE_NAME "./segment.lock"
+  #define FAIL_EXIT(__MSG,__FD) perror(__MSG); \
+                          if(__FD >= 0) \
+                                  close(__FD); \
+                          exit(EXIT_FAILURE)
+  //输出锁结构体信息
+  void print_flock(struct flock*);
+  //获取锁的封装函数
+  void getflock(int ,struct flock*);
+  //测试区间锁
+  int main(){
+          int fd;
+          if((fd = open(FILE_NAME,O_RDWR)) == -1){
+                  FAIL_EXIT("open file error",-1);
+          }
+          //定义锁区间，测试锁
+          struct flock test_region;
+          //测试读锁
+          test_region.l_type = F_RDLCK;
+          test_region.l_whence = SEEK_SET;
+          test_region.l_start = 0;
+          test_region.l_len = 100;
+          test_region.l_pid = -2;
+          printf("测试0~127字节区间的读锁:\n");
+          getflock(fd,&test_region);
+          //测试写锁
+          test_region.l_type = F_WRLCK;
+          printf("测试0~127字节区间的写锁:\n");
+          getflock(fd,&test_region);
+          //测试256~655区间的读锁
+          test_region.l_type = F_RDLCK;
+          test_region.l_whence =SEEK_SET;
+          test_region.l_start = 256;
+          test_region.l_len = 400;
+          test_region.l_pid = -2;
+          printf("测试256~655区间的读锁:\n");
+          getflock(fd,&test_region);
+  
+          //尝试在存在读锁的区间再次加读锁
+          test_region.l_type = F_RDLCK;
+          test_region.l_whence =SEEK_SET;
+          test_region.l_start =0;
+          test_region.l_len = 100;
+          printf("尝试在0~99区间加读锁:\n");
+          if(fcntl(fd,F_SETLKW,&test_region)){
+                  FAIL_EXIT("set rdlck error",fd);
+          }
+          printf("添加读锁成功\n");
+          char buf[101]={0};
+          if(read(fd,buf,100) < 0){
+                  FAIL_EXIT("read info error",fd);
+          }
+          printf("读到的内容 = %s\n",buf);
+          test_region.l_type =F_UNLCK;
+          if(fcntl(fd,F_SETLKW,&test_region)){
+                  FAIL_EXIT("unlock rdlck error",fd);
+          }
+          //测试是否在有写锁时可写
+          printf("测试有写锁时在不测试锁的状态下能否写入\n");
+          strcpy(buf,"hello");
+          lseek(fd,256,SEEK_SET);
+          if(write(fd,buf,strlen(buf)+1) <=0){
+                  FAIL_EXIT("不能写入!",fd);
+          }
+  
+          /*
+          test_region.l_type =F_UNLCK;
+          if(fcntl(fd,F_SETLKW,&test_region)){
+                  FAIL_EXIT("unlock error",fd);
+          }
+  
+          */
+          close(fd);
+          return 0;
+  }
+  
+  void getflock(int fd,struct flock* test_region){
+          if(fcntl(fd,F_GETLK,test_region)){
+                  FAIL_EXIT("getlock error",fd);
+          }
+          print_flock(test_region);
+  }
+  
+  void print_flock(struct flock* info){
+          printf("l_type = %d\n",info->l_type);
+          printf("l_whence = %d\n",info->l_whence);
+          printf("l_start = %ld\n",info->l_start);
+          printf("l_len = %ld\n",info->l_len);
+          printf("l_pid = %d\n",info->l_pid);
+  }
+  ```
+
+  输出结果：
+
+  ##### 启动顺序：先启动`./segmentlock1`,在启动`./segmentlock2`
+
+  ```shell
+  测试0~127字节区间的读锁:
+  l_type = 2	# 2是宏F_UNLOCK，表示可以对该区间进行加锁，其他字段都没变
+  l_whence = 0
+  l_start = 0
+  l_len = 100
+  l_pid = -2
+  
+  测试0~127字节区间的写锁: 
+  l_type = 0	# 0的宏为F_RDLCK,后面的字段也变了(l_len变成了128，l_pid改成了拥有锁进程ID)，
+  l_whence = 0	#表示当前进程 176458 持有 0~127字节区间的读锁。
+  l_start = 0
+  l_len = 128
+  l_pid = 176458
+  
+  测试256~655区间的读锁:
+  l_type = 1	# 1是宏F_WRLCK,进程176458拥有 256~511区间的写锁。
+  l_whence = 0
+  l_start = 256
+  l_len = 256
+  l_pid = 176458
+  
+  尝试在0~99区间加读锁:	#读锁是共享锁，可以多进程同时读
+  添加读锁成功
+  读到的内容 = #include <fcntl.h>
+  #include <unistd.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #d
+  测试有写锁时在不测试锁的状态下能否写入 #没有返回错误，查看文件确实写入了，所以多进程之间必须都遵守锁的约束，锁才有意义。
+  ```
+
+  
+
 - 

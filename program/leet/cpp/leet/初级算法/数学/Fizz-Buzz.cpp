@@ -1,0 +1,61 @@
+//
+// Created by Administrator on 2026/8/15.
+//
+/**
+* Fizz Buzz
+给你一个整数 n ，返回一个字符串数组 answer（下标从 1 开始），其中：
+• answer[i] == "FizzBuzz" 如果 i 同时是 3 和 5 的倍数。
+• answer[i] == "Fizz" 如果 i 是 3 的倍数。
+• answer[i] == "Buzz" 如果 i 是 5 的倍数。
+• answer[i] == i （以字符串形式）如果上述条件全不满足。 
+示例 1：
+输入：
+n = 3
+输出：
+["1","2","Fizz"]
+示例 2：
+输入：
+n = 5
+输出：
+["1","2","Fizz","4","Buzz"]
+示例 3：
+输入：
+n = 15
+输出：["1","2","Fizz","4","Buzz","Fizz","7","8","Fizz","Buzz","11","Fizz","13","14","FizzBuzz"] 
+提示：
+• 1 <= n <= 104
+ * @return
+ */
+#include <algorithm>
+#include <iostream>
+#include <vector>
+#include <string>
+using namespace std;
+
+class Solution {
+    string getStr(int x) {
+        if (x % 15 == 0)
+            return "FizzBuzz";
+        if (x % 5 == 0)
+            return "Buzz";
+        if (x % 3 == 0)
+            return "Fizz";
+        return to_string(x);
+    }
+
+public:
+    vector<string> fizzBuzz(int n) {
+        vector<string> ret(n);
+        for (int i = 1; i <= n; i++)
+            ret[i - 1] = getStr(i);
+        return ret;
+    }
+};
+
+// int main() {
+//     int n =3;
+//     Solution sl;
+//     const auto & strings = sl.fizzBuzz(n);
+//     for_each(strings.begin(),strings.end(),[](const string& s){cout << s <<endl;});
+//     return 0;
+// }

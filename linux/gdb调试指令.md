@@ -51,11 +51,38 @@
    b func
    #查询所有断点信息
    i b (或者info b、info break等)
+   #使2号断点失效。（号码为上面断点列表中的号码Num）
+   disable break(b也可以) 2
+   #使2号断点有效。
+   enable break(b也可以) 2
+   #删除2号断点
+   delete break 2
+   #针对所有断点操作：
+   disable[enable/delete] breakpoints
+   ```
+
+7. 查看断点、display的信息：
+
+   ```bash
+   info break[display]
+   i b[display]
+   ```
+
+8. 设置到达断点后要执行的指令：
+
+   ```bash
+   #设置2号断点(号码为断点列表中的Num)
+   (gdb) commands 2
+   
+   Type commands for breakpoint(s) 2, one per line.
+   End with a line saying just "end".
+   >display num	#设置到达2号断点后屏幕显示num的值
+   >end	#end代表键入命令结束
    ```
 
    
 
-7. list的用法：
+9. list的用法：
 
    ```shell
    #显示第20行上下几行的内容
@@ -70,7 +97,7 @@
 
    
 
-8. 逐步往下走：
+10. 逐步往下走：
 
    ```shell
    next(或者n)
@@ -80,23 +107,33 @@
 
    
 
-9. 显示某一个变量的值：
+11. 显示某一个变量的值：
 
-   ```shell
-   #显示abc的值
-   display abc
-   #去掉第2项的display展示项
-   disable display 2
-   ```
-
-   
-
-10. 退出调试：
-
-    ```gdb
-    quit
+    ```shell
+    #持续显示abc的值
+    display abc
+    #去掉第2项的display展示项
+    disable display 2
+    #print指令是输出abc的值，只输出一次，不会钉在屏幕上
+    print abc
     ```
 
     
 
-11. 
+12. 退出调试：
+
+    ```gdb
+    quit(q)
+    ```
+
+    
+
+13. 栈跟踪：
+
+    ```c
+    backtrace (简写bt)或者where
+    ```
+
+    该指令可跟踪该函数是由哪个函数调用过来的。
+
+14. 

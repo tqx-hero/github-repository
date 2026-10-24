@@ -521,4 +521,114 @@
 
   
 
+- #### 重定向的函数：
+
+  函数原型如下：
+
+  ```c
+  #include <stdio.h>
+  /**
+  	以mode模式，打开pathname路径的文件，成功后将文件流绑定到stream(当然绑定之前关闭原先的stream)。
+  	等价于：
+  		int fd = open(pathname,mode);
+  		dup2(fd,fileno(stream));
+  		close(fd);
+  	return:
+  		成功：返回新的文件流。
+  		失败：NULL，填充errno
+  */
+  FILE *freopen(const char *pathname, const char *mode, FILE *stream);
+  ```
+
+  将其重定向标准输入：
+
+  程序1 `upper.c` ，功能是将键入的字符(标准输入)全部转成大写。
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <ctype.h>
+  
+  int main(){
+          int ch;
+          while((ch = getc(stdin)) != EOF)
+                  putc(toupper(ch),stdout);
+          return 0;
+  }
+  ```
+
+  程序2 `upper2.c` ,功能是将传入的pathname打开，重定向到标准输入流，成功后执行`upper.c` 程序：
+
+  程序中用到了两种方法：freopen()与系统调用open()、dup2()，两者原理相通。
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <ctype.h>
+  #include <unistd.h>
+  #include <fcntl.h>
+  //重定向,使用freopen()函数
+  int main(int argc,char** argv){
+          if(argc < 2){
+                  fprintf(stderr,"参数必须不少于2个\n");
+                  exit(EXIT_FAILURE);
+          }
+          //将文件打开，标准输入关闭，将文件重定向到标准输入
+          //等价于fd = open();dup2(fd,0);close(fd)
+          /**
+          if(!freopen(argv[1],"r",stdin)){
+                  perror("open fd error");
+                  exit(EXIT_FAILURE);
+          }
+          */
+          int fd = open(argv[1],O_RDONLY);
+          if(dup2(fd,0) == -1){
+                  perror("dup2 error");
+                  exit(EXIT_FAILURE);
+          }
+          close(fd);
+          //执行upper程序,该程序以O_RDONLY方式打开/dev/tty，从中read(0)，然后强转成大写write(1)
+          execl("./upper","upper",NULL);
+          return 0;
+  }
+  ```
+
+  执行程序：
+
+  ```bash
+  $ ./upper2 test.dat	#效果等价于指令： ./upper < test.dat
+  
+  THIS IS A TEST FILE THIS IS A TEST FILE,THIS IS A TEST FILE
+  THIS IS A TEST FILE
+  THIS IS A TEST FILE
+  THIS IS A TEST FILE,THIS IS A TEST FILETHIS IS A TEST FILE
+  ```
+
+  ##### 重定向标准输出:
+
+  如果程序1 `upper.c` 修改为：
+
+  在获取输入流之前，将文件重定向到标准输出，在执行：`./upper2 test.dat` 后，之前的终端输出变成了输出到文件 `a.txt`
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <ctype.h>
+  #define OUT_FILE "./a.txt"
+  //重定向
+  int main(){
+          int ch;
+          //测试，重定向标准输出到文件
+          if(freopen(OUT_FILE,"w",stdout) == NULL){
+                  perror("reopen a.txt error");
+                  exit(EXIT_FAILURE);
+          }
+          while((ch = getc(stdin)) != EOF)
+                  putc(toupper(ch),stdout);
+          return 0;
+  }
+  ```
+
+  
+
 - 

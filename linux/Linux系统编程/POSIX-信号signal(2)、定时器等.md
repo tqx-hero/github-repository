@@ -1316,4 +1316,108 @@ int main(){
 
   
 
+- #### 挂起进程的函数sigsuspend(3)：
+
+  ```c
+  #include <signal.h>
+  /**
+  	将进程的阻塞集暂时设置为sigmask，然后挂起进程等待信号处理。
+  	信号处理完成后有两种情况：
+  		程序终止，不会返回。
+  		自定义的handler返回，返回值为-1，填充errno = EINTR。并还原进程的阻塞集
+  */
+  int sigsuspend(const sigset_t *sigmask);
+  ```
+
+  > sigsuspend() 函数会将调用线程当前的信号掩码替换为 sigmask 所指向的信号集，随后挂起该线程，直到收到一个信号，且该信号的处理动作是执行信号捕获函数或是终止进程。该操作不会让进程上其他处于待处理状态的信号变为该线程的待处理信号。
+
+  > 若信号的处理动作为终止进程，则 sigsuspend() 永远不会返回。若信号的处理动作为执行信号捕获函数，则 sigsuspend() 会在信号捕获函数返回之后返回，**同时信号掩码恢复为调用 sigsuspend() 之前的状态。**
+
+  > 无法屏蔽那些不能被忽略的信号。该限制由系统强制实施，且不会返回错误提示。
+
+  **与pause(2)：同样都是阻塞等待一个信号，根据具体信号的处理函数再决定返不返回，而且返回值相同。**
+
+  **不同的是，pause(2)是等待任意一个信号就会停止阻塞，没法指定等待哪个确定的信号；sigsubpend(3)可以设置临时阻塞集，屏蔽无关信号，只关注未阻塞的信号集，对信号的控制更灵活。**
+
+  
+
+  ###### demo:
+
+  ```c
+  #include <signal.h>
+  #include <stdio.h>
+  #include <unistd.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include <errno.h>
+  #include <sys/wait.h>
+  void child_exec(){
+          while(1){
+                  printf("子进程正在执行...\n");
+                  sleep(1);
+          }
+  }
+  
+  void sigint_handler(int signum){
+          const char *str = "主进程收到SIGINT信号!\n";
+          write(STDOUT_FILENO,str,strlen(str) + 1);
+  }
+  
+  int main(){
+          pid_t pid;
+          pid =fork();
+      	//注册信号处理handler
+          struct sigaction act;
+          act.sa_handler = sigint_handler;
+          sigemptyset(&act.sa_mask);
+          act.sa_flags = SA_RESETHAND;//仅执行一次
+          sigaction(SIGINT,&act,NULL);
+          switch(pid){
+                  case -1:
+                          perror("fork error");
+                          exit(EXIT_FAILURE);
+                  case 0 :
+                          child_exec();
+                          exit(EXIT_SUCCESS);
+                  default:
+                          break;
+          }
+          //父进程使用sigsuspend()等待信号
+      	//设置阻塞集，这里屏蔽除SIGINT外的任何信号
+          sigset_t set;
+          sigfillset(&set);
+          sigdelset(&set,SIGINT);
+          //等待进程被唤醒
+          sigsuspend(&set);
+          //给子进程发送信号SIGQUIT
+          if(kill(pid,SIGQUIT)){
+                  perror("给子进程发送信号失败");
+                  exit(EXIT_FAILURE);
+          }
+          while(waitpid(pid,NULL,0) <= 0);
+          printf("子进程回收成功，主进程退出\n");
+          return 0;
+  }
+  ```
+
+  输出结果：
+
+  ```bash
+  $ ./sigsuspend
+  
+  子进程正在执行...
+  子进程正在执行...
+  子进程正在执行...
+  子进程正在执行...
+  子进程正在执行...
+  子进程正在执行...
+  子进程正在执行...
+  ^C主进程收到SIGINT信号!
+  主进程收到SIGINT信号!
+  子进程正在执行...
+  子进程回收成功，主进程退出
+  ```
+
+  
+
 - 

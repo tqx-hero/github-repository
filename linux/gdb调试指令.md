@@ -47,10 +47,25 @@
    ```shell
    #在源码第10行打断点
    break(或简写b) 10
+   #在file.c文件的第100行设置断点
+   break file.c:100 
    #在函数func处设置断点
    b func
    #查询所有断点信息
    i b (或者info b、info break等)
+   
+   break main.c:10       # 在main.c的第10行设置断点
+   break function_name   # 在函数入口设置断点
+   break *0x8048000      # 在内存地址设置断点
+    
+   info breakpoints      # 查看所有断点
+   delete 2              # 删除编号为2的断点
+   disable 1             # 禁用编号为1的断点
+   enable 1              # 启用编号为1的断点
+    
+   # 条件断点
+   break 15 if x == 5    # 当x等于5时在第15行中断
+   
    #使2号断点失效。（号码为上面断点列表中的号码Num）
    disable break(b也可以) 2
    #使2号断点有效。
@@ -116,6 +131,14 @@
     disable display 2
     #print指令是输出abc的值，只输出一次，不会钉在屏幕上
     print abc
+    
+    print x               # 打印变量x的值
+    print/x x             # 以十六进制打印x
+    print array[10]@5     # 打印数组从第10个元素开始的5个元素
+    print *(int*)0x1234   # 打印内存地址0x1234处的整数值
+     
+    set var x = 10        # 修改变量x的值为10
+    set {int}0x1234 = 10  # 修改内存地址0x1234处的值为10
     ```
 
     
@@ -126,14 +149,80 @@
     quit(q)
     ```
 
-    
+13. 选择调试的进程(`fork(2)` 后的父子进程间切换)：
 
-13. 栈跟踪：
-
-    ```c
-    backtrace (简写bt)或者where
+    ```bash
+    #选择调试子进程
+    (gdb) set follow-fork-mode child
+    #选择调试父进程
+    (gdb) set follow-fork-mode parent
     ```
 
-    该指令可跟踪该函数是由哪个函数调用过来的。
+    
 
-14. 
+14. 调试线程：
+
+    ###### 在线程2上设置断点：
+
+    ```bash
+    (gdb) b file.c:20 thread 2
+    ```
+
+    ###### 查看当前程序的所有线程：
+
+    ```bash
+    #会以列表形式展示程序的所有线程，gdb会给每个线程分配Id，Id前面带 * 的是当前调试的线程
+    (gdb) info threads
+    ```
+
+    ###### 调试目标ID指定的线程：
+
+    ```bash
+    (gdb) thread 3 #调试Id为3的线程
+    ```
+
+    ###### 设置是否锁定其他线程：
+
+    ```bash
+    #off: 不锁定，即所有线程同时执行。
+    #on: 只有当前调试的线程执行
+    #step：只有单步执行时，只有当前线程执行
+    (gdb) set scheduler-locking [off | on | step | reply]
+    ```
+
+    
+
+15. 观察点（Watchpoints）：
+
+    ```bash
+    watch x               # 当x被修改时中断
+    rwatch x              # 当x被读取时中断
+    awatch x              # 当x被读取或修改时中断
+    info watchpoints      # 查看所有观察点
+    ```
+
+16. 调用栈分析：
+
+    ```bash
+    backtrace             # 显示调用栈
+    backtrace full        # 显示调用栈及局部变量
+    frame 2               # 切换到栈帧2
+    info frame            # 显示当前栈帧信息
+    info args             # 显示当前函数的参数
+    info locals           # 显示当前函数的局部变量
+    ```
+
+17. 处理信号：
+
+    ```shell
+    info signals         # 查看信号处理方式
+    handle SIGSEGV stop  # 当收到SIGSEGV时中断
+    handle SIGINT print  # 当收到SIGINT时打印信息
+    ```
+
+18. 
+
+
+
+
+

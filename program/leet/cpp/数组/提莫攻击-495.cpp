@@ -43,17 +43,48 @@ timeSeries 按 非递减 顺序排列
 #include <iostream>
 using namespace std;
 //TODO
+//数组的值next、中毒时间dur、结果ret有以下关系：
+//1、数组的当前值+dur-1，得到中毒的最后一个时间last_time
+//2、如果next > last_time,中毒时间没有交集，增加一个中毒ret += dur；
+//3、next == last_time，中毒时间只有这个节点，增加中毒时间 ret += dur-1；
+//4、如果next < last_time，由于数组非递减，中毒时间为next-prev，prev为上一个数组元素值，ret += next-pev；
+//5、计算结束后，更新最晚中毒时间 last_time = next + duration -1;
+//6、数组最后一个结束，ret += dur;
 class Solution
 {
 public:
     int findPoisonedDuration(vector<int> &timeSeries, int duration)
     {
-        int times = 0;
-
+        int times = 0,last_time = timeSeries[0] + duration - 1;
+	size_t size = timeSeries.size();
+	int i;
+	for(i = 1;i < size;++i){
+		int subval = timeSeries[i] - last_time;
+		//如果当前时间已经超过中毒最晚时间,增加dur
+		if(subval > 0)
+			times += duration;
+		//如果相等，去掉两者重叠点-1
+		else if(!subval)
+			times += duration -1;
+		//如果不超过中毒最晚时间，需要增加next-last_time,且last_time = next
+		else
+			times += timeSeries[i] - timeSeries[i-1];
+		//更新最晚中毒时刻
+		last_time = timeSeries[i] + duration - 1;
+	}
+	return times + duration;
     }
 };
 
-// int main()
-// {
-//     return 0;
-// }
+int main()
+{
+//	vector <int> timeSeries{1,4};
+//      int duration = 2;
+	vector <int> timeSeries{1,2,3,4,5};
+        int duration = 5;
+//	vector <int> timeSeries{1,2};
+//        int duration = 2;
+	Solution sl;
+	cout << sl.findPoisonedDuration(timeSeries,duration) << endl;
+	return 0;
+}

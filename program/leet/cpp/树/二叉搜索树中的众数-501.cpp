@@ -35,19 +35,61 @@ premium lock icon
 进阶：你可以不使用额外的空间吗？（假设由递归产生的隐式调用栈的开销不被计算在内）
  */
 #include <vector>
-#include "../../link/TreeNode.h"
+#include <climits>
+#include <iostream>
+#include <algorithm>
+#include "../tree/TreeNode.h"
 using namespace std;
 //TODO
 class Solution
 {
+	int current_num,current_cnt;//当前值与当前值的出现次数
+	vector<int> ret;//结果数组
+	int ret_cnt;//结果数组的元素出现次数
+	
+	void dfs(TreeNode* root){
+		if(!root)
+			return;
+		dfs(root->left);
+		if(root->val == current_num){
+			++current_cnt;
+		}else{
+
+		 	if (current_cnt == ret_cnt)//记录的值出现次数与数组记录的最多次数相同，直接添加
+				ret.push_back(current_num);
+			else if(current_cnt > ret_cnt){
+				ret.clear();
+				ret.push_back(current_num);
+				ret_cnt = current_cnt;
+			}
+			current_num = root->val;
+			current_cnt = 1;
+		}
+		dfs(root->right);
+	}
 public:
     vector<int> findMode(TreeNode *root)
     {
-
+	ret_cnt = -1;
+	current_cnt = 0;
+	current_num = INT_MIN;
+	dfs(root);
+	if(current_cnt == ret_cnt)
+		ret.push_back(current_num);
+	else if(current_cnt > ret_cnt)
+		return vector<int>{current_num};
+	return ret;
     }
 };
 
-// int main()
-// {
-//     return 0;
-// }
+int main()
+{
+	TreeNode n3{2,nullptr,nullptr};
+	TreeNode n2{2,&n3,nullptr};
+	TreeNode n1{1,nullptr,&n2};
+	Solution sl;
+	const auto & vc = sl.findMode(&n1);
+	for_each(vc.begin(),vc.end(),[](const int& num){cout << num << " ";});
+	cout << endl;
+    	return 0;
+}

@@ -26,7 +26,7 @@
 union semun{
 	int val;
 	struct semid_ds *buf;
-	unsigned short  *array;  /* GETALL、SETALL 使用的数组 */
+	unsigned short  *array; 
 	struct seminfo  *__buf; 
 };
 static int set_semval(int,int);

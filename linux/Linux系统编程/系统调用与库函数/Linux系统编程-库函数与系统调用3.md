@@ -631,4 +631,43 @@
 
   
 
+- #### 获取系统的相关限制值(APUE第二章2.5节)：
+
+  限制值都定义在 `<limits.h>` 或 `<unistd.h>` 中，有些是编译期就确定的常量，有些则是运行时确定的，可以通过以下函数来获取：
+
+  `sysconf(3)` 、`pathconf(3)` 、 `fpathconf(3)` .
+
+  ```c
+  #include <unistd.h>
+  /**
+  	通过name查询该属性值的限制值,失败返回-1，成功则返回相应的值
+  	name: 要查询的属性名称，在linux下需要在名称添加前缀 _SC_ ,具体详情查阅sysconf(3)或者查看APUE第二章p31-2.5.4节.
+  */
+  long sysconf(int name);
+  
+  //分别根据文件描述符fd、文件路径path 查询name的属性值，与sysconf返回值规定相同。
+  //在Linux下这两个函数的name需要添加 _PC_ ，具体支持的name查阅pathconf(3)或APUE第二章2.5节
+  long fpathconf(int fd, int name);
+  long pathconf(const char *path, int name);
+  ```
+
+  demo:
+
+  ```c
+  #include <stdio.h>
+  #include <limits.h>
+  #include <unistd.h>
+  int main(){
+          //sysconf(3)获取系统的限制项,name以_SC_为开头
+          printf("一个进程能同时打开的文件数量 = %ld\n",sysconf(_SC_OPEN_MAX));
+          //pathconf(3)，name以_PC_开头
+          printf("文件名的最长为 %ld\n",pathconf("./t1.c",_PC_PATH_MAX));
+          //fpathconf(3)，name以_PC_开头
+          printf("终端输入的最长字节数为 %ld\n",fpathconf(0,_PC_MAX_CANON));
+          return 0;
+  }
+  ```
+
+  
+
 - 

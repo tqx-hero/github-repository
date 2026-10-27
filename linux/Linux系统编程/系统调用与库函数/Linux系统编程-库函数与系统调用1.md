@@ -14,7 +14,7 @@
    	O_RDWR:	读写
    2、可选项：
        O_TRUNC:	清空文件内容
-   	O_APPEND:	原有内容基础上追加
+   	O_APPEND:	原有内容基础上追加，注意：在写入之前，内核总是会把指针放到文件末尾，再进行写入，所以lseek(2)只会影响读的位置，不会影响写的位置
    	O_EXCL:		当|O_CREAT时如果文件存在，会报错，保证文件不会重复创建
    	O_CREAT:	创建文件
    	O_NONBLOCK:	操作文件非阻塞
@@ -55,6 +55,43 @@
            close(fd);
            return 0;
    }
+   ```
+
+   ###### demo:测试 `O_APPEND` 模式下 `lseek(2)` 对读写指针的影响：
+
+   ```c 
+   #include <unistd.h>
+   #include <stdio.h>
+   #include <fcntl.h>
+   //使用leek函数，通过输入的文件类型来查看是否可以移动读写指针
+   int main(){
+           int fd;
+           if((fd = open("./test", O_RDWR | O_APPEND)) == -1){//以追加模式打开文件
+             perror("open error");
+             return -1;
+           }
+           lseek(fd,0,SEEK_SET); //指针移动到文件开头
+           char r_buf[1024];
+           read(fd,r_buf,sizeof(r_buf)); //读取内容，能正常读取
+           printf("读取的内容1 = %s\n",r_buf);
+           char buf[] = "helloworld!!!";
+           write(fd,buf,sizeof(buf));//写入，会：lseek(fd,0,SEEK_END);write(fd...)，这两步操作是原子性的
+           r_buf[0] = 0;
+       	ssize_t bytes = read(fd,r_buf,sizeof(r_buf));//此时指针在文件末尾，不会读到内容
+           printf("bytes = %ld\n",bytes);
+           printf("读取的内容2 = %s\n",r_buf);
+           return 0;
+   }
+   ```
+
+   输出结果：
+
+   ```bash
+   $ ./a.out 
+   读取的内容1 = ndoslkdsanldkasndlkasndklasndasklndsalkjdnsakjldnaslkcnlksansalkdnsakldsandlmsandasjkl
+   helloworld!!!
+   bytes = 0
+   读取的内容2 =
    ```
 
    

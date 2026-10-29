@@ -1,0 +1,10 @@
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+int main(){
+	umask(0777);
+	open("./txt",O_CREAT | O_RDWR,0777);
+	return 0;
+}

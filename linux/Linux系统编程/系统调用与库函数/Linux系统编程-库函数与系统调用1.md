@@ -1,5 +1,7 @@
 1. ##### 文件打开/关闭open(2)：
 
+   ###### 以用户的有效ID检测是否拥有以读、写、可执行的方式打开文件的权限，如果有，打开文件并返回文件描述符
+
    ```c
    #include <sys/types.h>
    #include <sys/stat.h>
@@ -362,9 +364,20 @@
    int stat(const char *pathname, struct stat *statbuf);
    //通过文件描述符获取
    int fstat(int fd, struct stat *statbuf);
-   //获取的是链接文件的属性，而不是它指向的源文件。
+   //同stat，如果是链接文件，获取的是链接文件的属性，而不是它指向的源文件。
    int lstat(const char *pathname, struct stat *statbuf);
-   
+   /**
+   	可通过已打开的目录fd，相对路径为pathname找到文件，获取它的属性。
+   	fd：
+   		已打开的目录的fd。
+   		特殊情况：
+   			1、fd = AT_FDCWD && pathname为相对路径：以当前目录为基准，找到相对路径pathname的文件。
+   			2、pathname为绝对路径，fd会被忽略。
+   	pathname：相对路径或绝对路径，具体查看上面的fd描述。
+   	flag：按位或组成的，控制函数行为。
+   	AT_SYMLINK_NOFOLLOW：启用该项，遇到链接文件不会追溯到源文件，只会返回链接文件信息。
+   */
+   int fstatat(int fd,const char *restrict pathname,struct stat *buf,int flag);
    //stat结构体：
    struct stat {
           dev_t     st_dev;         /* ID of device containing file */
@@ -1447,7 +1460,7 @@
 
     - 
 
-18. ###### chmod修改文件的访问权限(man 2 chmod)：
+18. ###### `chmod`修改文件的访问权限(`man 2 chmod`)：
 
     ```c
     #include <sys/stat.h>
@@ -1459,6 +1472,8 @@
     		失败：返回-1，错误码在errno
     */
     int chmod(const char *pathname, mode_t mode);
+    int fchmod(int fd,mode_t mode);
+    int fchmodat(int fd,const char *pathname,mode_t mode,int flag);
     ```
 
     ###### demo:修改当前目录下test.txt文件的权限为644：
@@ -1507,6 +1522,12 @@
 
 20. ##### 测试文件是否存在access(2)：
 
+    > 注意：与open(2)的有效ID检测权限不同，access(2)是以用户的实际ID(即登录ID)来校验用户是否可以访问指定文件。至于有效ID一般情况下等于用户实际ID。
+    >
+    > 但是如果超级用户使用`suid` / `sgid` 对二进制文件的有效ID进行设置，可以将有效ID定义为文件的所属ID/所属组ID。
+    >
+    > 实际ID不能被修改，他就是指登录用户的ID
+
     ```c
     #include <unistd.h>
     /**
@@ -1521,6 +1542,24 @@
     		-1: 没有相应权限，或者文件不存在，错误码存储到errno
     */
     int access(const char *pathname, int mode);
+    /**
+    	相对于打开的目录的相对路径检测，除了路径表示不同，功能与access相同。
+    	fd：文件目录的fd。
+    	特殊情况：
+    		1、fd = AT_FDCWD && pathname为相对路径：表示的是以当前目录的相对路径下的文件。
+    		2、pathname为绝对路径，fd会被忽略。
+    	pathname：相对路径或绝对路径，具体查看上面fd的描述。
+    	mode：同access(2)的mode。
+    	flag：改变函数行为，由多个常量按位或得到。
+    		AT_EACCESS：使用调用进程的有效ID，而不是实际ID。
+    		AT_SYMLINK_NOFOLLOW：如果是链接文件，不会追溯到链接指向的实际文件，而是针对链接文件本身。
+    	return:
+    		0 : 拥有相应的权限，F_OK时文件存在，返回0
+    		-1: 没有相应权限，或者文件不存在，错误码存储到errno
+    */
+    #include <fcntl.h>
+    #include <unistd.h>
+    int faccessat(int fd,const char* pathname,int mode,int flag);
     ```
 
     ###### demo:测试tst.txt是否存在
@@ -1538,6 +1577,55 @@
      10         printf("文件存在\n");
      11         return 0;
      12 }
+    ```
+
+    ###### demo:测试用户的实际ID与有效ID在访问同一个文件时的不同
+
+    源代码分别使用`access(2)` 与 `open(2)` 两种ID检测方式对输入的文件进行检测。
+
+    ```c
+    #include <unistd.h>
+    #include <fcntl.h>
+    #include <stdio.h>
+    
+    int main(int argc,char** argv){
+            //使用当前用户查看文件的访问权限
+            if(access(argv[1],R_OK) == -1)	//查看当前用户是否有权限读取文件
+                    perror("access error");
+            else
+                    printf("access success\n");
+            if(open(argv[1],O_RDONLY) == -1) //检测用户的有效ID，查看是否能以读方式打开文件
+                    perror("open error");
+            else
+                    fprintf(stdout,"open success\n");
+            return 0;
+    }
+    ```
+
+    ###### 输出结果：这里以只有超管有权操作的 `/etc/shadow` 文件为例
+
+    ```bash
+    [tqx@localhost page4]$ ./a.out /etc/shadow	#以普通用户执行，结果都没有权限。
+    access error: Permission denied
+    open error: Permission denied
+    
+    [tqx@localhost page4]$ su	#切换超管
+    Password:
+    [root@localhost page4]# chown root a.out	#设置文件所有者为root
+    [root@localhost page4]# ls -l
+    total 16
+    -rwxrwxr-x. 1 root tqx 8608 Oct 29 09:54 a.out	#当前文件的所有者变成了root
+    -rw-rw-r--. 1 tqx  tqx  348 Oct 29 09:54 suid.c
+    [root@localhost page4]# chmod u+s a.out	#设置文件的suid，即调用exec函数执行时会将用户的有效ID设置为文件的所属ID(root)
+    [root@localhost page4]# ls -l
+    total 16
+    -rwsrwxr-x. 1 root tqx 8608 Oct 29 09:54 a.out	#设置后可执行位变成了s
+    -rw-rw-r--. 1 tqx  tqx  348 Oct 29 09:54 suid.c
+    [root@localhost page4]# su tqx	#切换回用户
+    
+    [tqx@localhost page4]$ ./a.out /etc/shadow	#再次执行程序
+    access error: Permission denied	#access检测的用户实际ID(tqx)，仍然不可访问
+    open success	#open检测的用户有效ID(已变为root)，可以访问
     ```
 
     

@@ -701,4 +701,91 @@
   >
   > 
 
+- #### 设置文件流的缓冲区(3):
+
+  ###### 常规情况下，Linux下对标准错误不带缓冲区，标准输入输出是行缓冲(即遇到 `\n` 刷新缓冲区)，其他的流是全缓冲，即缓冲区满了才会刷新到磁盘。下面的函数可以改变流的缓冲区模式。
+
+  ```c
+  #include <stdio.h>
+  //开启或关闭stream的缓冲区。
+  //buf:为缓冲区的地址，NULL时，会关闭缓冲区的功能，后续使用标准I/O函数，效果等同于系统调用，没有缓冲区
+  void setbuf(FILE *stream, char *buf);
+  /**
+  	给stream设置缓冲区类型。
+  	buf：缓冲区地址。
+  		为NULL时，行为需要依据mode进一步讨论。如果mode指定需要缓冲区，内核会自动维护一个缓冲区。
+  		不为NULL时，指定size大小的缓冲区作为stream的缓冲区。
+  	mode：缓冲区的模式。
+  		_IOFBF: 设置全缓冲区。
+  		_IOLBF: 设置行缓冲区。
+  		_IONBF: 不设置缓冲区，此时参数buf与size均被忽略。
+  		
+  	size：缓冲区大小。如果buf为NULL，size会被忽略，系统会自动维护适当大小的缓冲区(通常是BUFSIZ)
+  	
+  	return：
+  		成功： 0
+  		失败： 非0，填充errno
+  */
+  int setvbuf(FILE *stream, char *buf, int mode, size_t size);
+  ```
+
+  ###### demo1：使用setbuf启用/取消标准输出的缓冲区
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  #include <string.h>
+  //使用setbuf(3)设置缓冲区
+  int main(){
+      char buf[BUFSIZ];
+      setbuf(stdout,buf); //设置标准输出的缓冲区为buf
+      fprintf(stdout,"hello world\n");
+      write(1,buf,strlen(buf)); //系统调用形式输出buf，结果同上面的语句相同
+      //设置取消缓冲区
+      setbuf(stdout,NULL); //取消缓冲区
+      printf("hahahaha"); //没有换行符也会立即输出
+      while(1);
+      return 0;
+  }
+  ```
+
+  输出结果：
+
+  ```bash
+  $ ./setbuf
+  hello world	#fprintf标准输出
+  hello world	# write系统调用直接输出buf到终端的内容，证实了已经把buf当作标准输出的缓冲区
+  hahahaha	# 关闭了标准输出缓冲区后，printf没有换行符，内容也刷新出来了
+  ```
+
+  
+
+  ###### demo2：使用setvbuf(3)设置标准输出流的全缓冲模式
+
+  ```c
+  #include <stdio.h>
+  #include <unistd.h>
+  //设置缓冲区模式：全缓冲、行缓冲、不缓冲
+  int main(){
+      //设置标准输出为全缓冲,使用的系统自己管理的缓冲区
+      setvbuf(stdout,NULL,_IOFBF,0);
+      printf("hello world..\n");
+      sleep(5);
+      fflush(stdout);
+      sleep(2);
+          return 0;
+  }
+  ```
+
+  输出结果：
+
+  ```bash
+  $ ./setvbuf
+  #在输出hello world.. 之前会有5s的等待时间，证实了stdout设置成全缓冲后，换行符\n不能再刷新缓冲区
+  hello world..	#执行fflush主动刷新缓冲区后，才会输出内容
+  ```
+
+  
+
 - 

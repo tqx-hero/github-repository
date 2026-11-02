@@ -141,7 +141,7 @@
   ```c
   #include <time.h>
   //返回的是 time1 - time2的差
-  double difftime(time_t time1, time_t time0);       
+  double difftime(time_t time1, time_t time2);       
   ```
 
   在 POSIX 系统中，time_t 是一种算术类型。如果无需考虑减法运算可能出现的溢出问题，可以直接定义：

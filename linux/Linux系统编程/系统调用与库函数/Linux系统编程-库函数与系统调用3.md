@@ -790,6 +790,8 @@
 
 - #### 练习：删除第十行内容
 
+  ###### 1、使用标准I/O函数实现：其中用到了扩展函数 `getline(3)` 用来获取一行.
+
   ```c
   #include <stdio.h>
   #include <stdlib.h>
@@ -853,10 +855,7 @@
                   perror("seek() error");
                   goto fail_ret;
           }
-  
-          //清空读缓冲区，准备后续读入第十一行开始的数据
-          fflush(r_fdp);
-  
+      
           //读取第十一行往后的内容到缓冲区，写入文件，这一步需要循环操作直到文件结束
           pos = 0;
           while(1){
@@ -922,6 +921,287 @@
   
           return nbytes;
   
+  }
+  ```
+
+  ###### 2、使用系统调用来实现。其中使用了自行封装的函数 `fmygetline()` ，作用是通过文件描述符来获取一行，实现的源码参考下一小节。
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  #include <string.h>
+  #include <fcntl.h>
+  #include <sys/types.h>
+  #include "mygetline/mygetline.h"
+  #define BUFSIZE BUFSIZ
+  //删除文件的第10行数据,使用系统调用函数
+  off_t get_offset(int fd,int linenum);
+  
+  int main(int argc,char **argv){
+          int r_fd,w_fd;
+          off_t r_off,w_off;
+          char *buf = NULL;
+          size_t rlen,wlen,pos;
+          //检验参数数量
+          if(argc < 2){
+                  fprintf(stderr,"Usage main() : param <argv[1]> must not be empty!\n");
+                  exit(EXIT_FAILURE);
+          }
+  
+          //判断文件是否存在
+          r_fd = open(argv[1],O_RDWR);
+          if(r_fd < 0){
+                  perror("open file error");
+                  exit(EXIT_FAILURE);
+          }
+  
+          //判断文件是否存在第十行,文件没有十行，不需要后续操作，直接返回
+          w_off = get_offset(r_fd,9);
+          if(w_off < 0)
+                  goto success_ret;
+  
+          //移动到第十一行，如果没有第十一行，直接截断文件到第九行末尾
+          r_off = get_offset(r_fd,1);
+          if(r_off < 0){
+                  ftruncate(r_fd,w_off);
+                  goto success_ret;
+          }
+  
+          //避免栈空间不足，在堆上申请缓冲区空间
+          buf = malloc(BUFSIZE);
+          if(!buf){
+                  perror("malloc error");
+                  goto fail_ret;
+          }
+  
+          //以读写方式打开文件流，准备在该文件流进行写入
+          w_fd = open(argv[1],O_RDWR);
+          if(w_fd < 0){
+                  perror("open wfd error");
+                  goto fail_ret;
+          }
+  
+          //设置写指针到第10行起始位置
+          if(lseek(w_fd,w_off,SEEK_SET) < 0){
+                  perror("seek() error");
+                  goto fail_ret;
+          }
+  
+          //读取第十一行往后的内容到缓冲区，写入文件，这一步需要循环操作直到文件结束
+          pos = 0;
+          while(1){
+                  //从读文件流读取数据到buf，上面已经将读指针读到了第十一行，直接读即可。
+                  rlen = read(r_fd,buf,BUFSIZE);
+                  if(rlen == 0)
+                          break;
+  
+                  //循环写入缓冲区内的数据,保证读多少，写多少
+                  while(pos < rlen){
+                          wlen = write(w_fd,buf + pos,rlen - pos);
+                          pos += wlen;
+                  }
+  
+                  //当读指针到头，循环结束
+                  if(rlen < BUFSIZE)
+                          break;
+          }
+  
+          //重新设置文件大小为写文件流的当前偏移量
+          ftruncate(w_fd,lseek(w_fd,0,SEEK_CUR));
+  
+  success_ret:
+          fprintf(stdout,"file update success!\n");
+  
+          //关闭资源
+          free(buf);
+          if(r_fd)
+                  close(r_fd);
+          if(w_fd)
+                  close(w_fd);
+          return 0;
+  
+  fail_ret:
+          free(buf);
+          if(w_fd)
+                  close(w_fd);
+          if(r_fd)
+                  close(w_fd);
+          exit(EXIT_FAILURE);
+  }
+  
+  //获取从相对当前位置后linenum行末的字节数(从文件起始位置开始算)
+  off_t get_offset(int fd,int linenum){
+          int cur_linenum = 0;
+          char * buf = NULL;
+          size_t bytes;
+          ssize_t ret;
+          off_t nbytes = 0;
+          //开始按照行读取
+          while(cur_linenum < linenum){
+                  ret = fmygetline(fd,&buf,&bytes);
+                  if(ret <= 0){
+                          free(buf);
+                          return -1;
+                  }
+                  nbytes += ret;
+                  cur_linenum++;
+          }
+  
+          //回收内存
+          mygetline_free(buf);
+  
+          return nbytes;
+  
+  }
+  ```
+
+  
+
+- ##### 实现从文件流/描述符获取一行：
+
+  函数原型为：
+
+  ```c
+  #include <stdio.h>
+  /**
+  	从文件流获取一行数据，放到 *lineptr 指向的地址，字节数放到n指向的地址。
+  	lineptr: 缓冲区首地址的指针。传值方式：
+      	自定义一个指针 char *linep = NULL;传入linep地址。内核会自行在堆空间申请适当内存充当缓冲区，并返回有效地址。
+      n：缓冲区大小的地址。size_t sz = 0，传入该变量的地址，申请适当空间，内核回填这块内存的大小。注意：该项代表的是缓冲区的大小，而不是有效内容的大小
+      
+      return:
+      	返回有效内容的字节数。（不包含末尾的'\0'）
+      	失败或者文件已经到了末尾，则返回-1，填充errno
+  */
+  ssize_t getline(char **lineptr, size_t *n, FILE *stream);
+  ```
+
+  在函数原型基础上自行实现该功能，且：
+
+  ​	扩展了以文件描述符代替文件流传参方式的 `fmygetline()` ，适用于没有开启文件流的场景。
+
+  ​	补充了释放内存的函数。
+
+  头文件：`<mygetline.h>`
+
+  ```c
+  #ifndef __MY_GETLINE_H
+  #define __MY_GETLINE_H
+  
+  #include <stdio.h>
+  #include <string.h>
+  #include <stdlib.h>
+  #include <errno.h>
+  #include <unistd.h>
+  #define RESIZE_FACTOR 2
+  #define DEFAULT_SIZE 128
+  //自定义实现getline，即按行读取文件流，动态管理内存,模板函数参考getline(3)
+  ssize_t mygetline(char **lineptr,size_t *size,FILE *stream);
+  //实现根据文件描述符获取一行
+  ssize_t fmygetline(int fd,char **lineptr,size_t *size);
+  //回收行缓冲区
+  int mygetline_free(char *lineptr);
+  
+  #endif
+  ```
+
+  源文件： `<mygetline.c>`
+
+  ```c
+  #include "mygetline.h"
+  //获取文件流一行内容，返回字节数
+  ssize_t mygetline(char **lineptr,size_t *size,FILE *stream){
+          size_t str_len = 0;
+          void *newp;
+      if(*size < DEFAULT_SIZE)
+          *size = DEFAULT_SIZE;
+      if(!*lineptr)
+          *lineptr = malloc(*size);
+          if(!*lineptr)
+              return -1;
+      //读取一行
+      while(1){
+              if(!fgets(*lineptr + str_len,*size,stream)){
+                      if(feof(stream)){
+                              clearerr(stream);
+                              return 0;
+                      }
+                      return -1;
+              }
+              //判断字符串的最后一个字节是否是 \n,如果是则返回
+              str_len = strlen(*lineptr);
+              if(str_len < *size - 1 || (*lineptr)[str_len - 1]  == '\n')
+                      break;
+              //如果读到的字节数等于size - 1，并且还没读完一整行，说明这一整行很长，需要重新申请空间，再读
+              newp = realloc(*lineptr,*size * RESIZE_FACTOR);
+              if(!newp)
+                      return -1;
+              *size *= RESIZE_FACTOR;
+              *lineptr = (char*)newp;
+      }
+      return str_len;
+  }
+  
+  #define GETLINE_BUFSZ 120
+  
+  //判断字符是否存在\n
+  int contain_enter(const char *buf,const ssize_t len,ssize_t *actlen){
+          ssize_t i;
+          for(i = 0;i < len && buf[i] != '\n';++i);
+          if(i >= len){ //到头了，说明不存在\n
+                  *actlen = i;
+                  return 0;
+          }
+          *actlen = i + 1;
+          //存在，则设置真实的长度
+          return 1;
+  }
+  
+  //根据fd获取一行
+  ssize_t fmygetline(int fd,char **lineptr,size_t *size){
+          size_t str_len = 0;
+          void *newp;
+          char r_buf[GETLINE_BUFSZ];
+          ssize_t rbytes,actlen;
+          int is_end;
+      if(*size < DEFAULT_SIZE)
+          *size = DEFAULT_SIZE;
+      if(!*lineptr)
+          *lineptr = malloc(*size);
+          if(!*lineptr)
+              return -1;
+      //读取一行
+      while(1){
+              if((rbytes = read(fd,r_buf,sizeof(r_buf))) < 0)
+                      return -1;
+              if(rbytes == 0)
+                      break;
+              //判断读出的内容是否存在\n
+              is_end = contain_enter(r_buf,rbytes,&actlen);
+              memcpy(*lineptr + str_len,r_buf,actlen);
+              str_len += actlen;
+              if(is_end){
+                      //存在\n,需要把最后那个字节填充0，并且把描述符读多的偏移量减回去
+                      (*lineptr)[str_len] = 0;
+                      lseek(fd,actlen - rbytes,SEEK_CUR);
+                      break;
+              }
+              //没有\n，容量不足则需要扩充内存，继续读
+              if(*size - str_len <= sizeof(r_buf)){
+                  newp = realloc(*lineptr,*size * RESIZE_FACTOR);
+                  if(!newp)
+                              return -1;
+                      *size *= RESIZE_FACTOR;
+                      *lineptr = (char*)newp;
+              }
+      }
+      return str_len;
+  }
+  
+  int mygetline_free(char *lineptr){
+          free(lineptr);
+          return 0;
   }
   ```
 

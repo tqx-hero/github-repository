@@ -837,4 +837,187 @@
 
   
 
+- ##### 创建链接文件：
+
+  ###### 1、创建硬链接文件(2)：
+
+  **硬链接是目录项的同义词(本质就是创建一个新的目录项)，不能硬链接分区，也不能硬链接目录(会出现目录循环指向的问题)。**
+
+  ```c
+  #include <unistd.h>
+  //创建硬链接文件
+  //oldpath: 源文件路径，newpath: 创建的文件路径
+  //成功：返回0，失败返回-1，填充errno
+  int link(const char *oldpath, const char *newpath);
+  
+  #include <fcntl.h>           /* Definition of AT_* constants */
+  #include <unistd.h>
+  /**
+  	Linux内核2.6.16才引入的函数
+  `linkat()` 系统调用行为和 `link()` 完全一致，除了下面列出的区别。
+  
+  如果 `oldpath` 是相对路径，它以文件描述符 `olddirfd` 指向的目录作为基准解析（而不像 `link()` 的相对路径，以调用进程**当前工作目录 CWD**为基准）。
+  
+  如果 `oldpath` 是相对路径，且 `olddirfd` 取特殊值 `AT_FDCWD`，那么 `oldpath` 按调用进程当前工作目录解析（和 `link()` 一样）。
+  
+  如果 `oldpath` 是绝对路径，则 `olddirfd` 参数被忽略。
+  
+  `newpath` 的解析规则和 `oldpath` 相同；区别是：`newpath` 为相对路径时，以文件描述符 `newdirfd` 指向的目录作为基准。
+  
+  `flags` 可以按位或下面这些标志：
+  
+  **`AT_EMPTY_PATH`（Linux 2.6.39 起支持）**
+  若 `oldpath` 是空字符串，则为 `olddirfd` 所引用的文件创建硬链接（这个 fd 通常由 `open(2)` 带 `O_PATH` 打开得到）。
+  此时 `olddirfd` 不能指向目录，可以是其他任意类型文件。
+  一般情况下，如果该文件链接计数为 0，这个操作会失败；`O_TMPFILE && !O_EXCL` 创建的临时文件是特例。
+  使用该标志需要进程拥有 `CAP_DAC_READ_SEARCH` 权限。
+  该标志是 Linux 特有，需要定义 `_GNU_SOURCE` 才可见。
+  
+  **`AT_SYMLINK_FOLLOW`（Linux 2.6.18 起支持）**
+  默认情况下，`linkat()` 不会解引用 `oldpath` 符号链接（和 `link()` 一样）。
+  指定 `AT_SYMLINK_FOLLOW`，则会跟随 `oldpath`，拿到符号链接指向的真实文件，再给它创建硬链接。
+  */
+  int linkat(int olddirfd, const char *oldpath,
+            int newdirfd, const char *newpath, int flags);
+  ```
+
+  ###### 2、创建符号链接(2)：
+
+  **符号链接就是快捷方式，本质是文件路径的字符串替换，不增加`inode`引用计数，几乎不占用额外磁盘空间，可以给目录创建符号链接。**
+
+  ```c
+  #include <unistd.h>
+  /**
+  `symlink()` 创建一个名为 `linkpath` 的符号链接，链接内部存放的字符串是 `target`。
+  
+  符号链接是在**运行时解析**：遍历路径的时候，会把链接里面存放的内容替换进去，继续查找文件 / 目录。
+  
+  符号链接内容里可以包含 `..`；如果 `..` 出现在链接内容开头，它代表**该软链接文件所在目录**的上级目录，而不是解析路径的当前目录。
+  
+  符号链接（又叫软链接）可以指向已经存在的文件，也可以指向不存在的文件；后者称为**悬空链接（dangling link）**。
+  
+  符号链接本身的权限位是无效的；跟随链接访问目标时，会忽略软链接自身的属主。但是：当目录设置了粘滞位 `S_ISVTX`，要删除 / 重命名这个软链接的时候，会校验软链接的属主。
+  
+  如果 `linkpath` 已经存在，调用不会覆盖它，直接失败。
+  	target: 目标文件路径，可以使用.或..代表的相对路径，也可以使用绝对路径。
+  	linkpath：创建的符号链接文件名。在找到该文件后，会把文件名替换成target解析。
+  */
+  int symlink(const char *target, const char *linkpath);
+  
+  #include <fcntl.h>           /* Definition of AT_* constants */
+  #include <unistd.h>
+  
+  int symlinkat(const char *target, int newdirfd, const char *linkpath);
+  ```
+
+  ###### 3、删除文件名：
+
+  ```c
+  #include <unistd.h>
+  /**
+  从文件系统中删除一个名字。如果该名字是文件的最后一条链接，并且**没有进程打开这个文件**，那么文件会被删除，它占用的磁盘空间可以回收复用。
+  
+  如果该名字是文件最后一条链接，但**还有进程持有该文件打开的文件描述符**，则文件会继续存在，直到最后一个引用它的 fd 被关闭。
+  
+  如果传入的名字指向一个符号链接，那么只会删除这个软链接本身。
+  
+  如果名字指向 socket、FIFO（命名管道）或者设备文件：只删除它在文件系统里的名字；已经打开该对象的进程仍然可以继续使用它。
+  return：
+  	成功：0
+  	失败：-1，填充errno
+  */
+  int unlink(const char *pathname);
+  
+  #include <fcntl.h>           /* Definition of AT_* constants */
+  #include <unistd.h>
+  
+  int unlinkat(int dirfd, const char *pathname, int flags);
+  ```
+
+  ###### 4、删除文件/目录(3)：
+
+  ```c
+  #include <stdio.h>
+  /**
+  	标准库函数，用于删除一个文件或空目录。
+  	如果pathname为一个文件，则会调用unlink(2)；
+  	若为目录，会调用rmdir(2)。
+  	return：
+  		成功：0
+  		失败：-1，填充errno
+  */
+  int remove(const char *pathname);
+  ```
+
+  ###### 5、重命名文件或重定位(2)：
+
+  ```c
+  #include <stdio.h>
+  /**
+  `rename()` 修改文件名，必要时可以把文件移动到别的目录。
+  该文件其他所有硬链接（`link(2)` 创建的）不受影响；指向 `oldpath` 的已打开文件描述符同样不受影响。
+  
+  能否成功执行 rename 受多种约束条件控制，见下方 ERRORS。
+  
+  如果 `newpath` 已经存在，它会被**原子替换**：不存在一个时间窗口，让其他访问 `newpath` 的进程看到该文件消失。不过，会存在一段短暂区间，`oldpath` 和 `newpath` 同时指向这个被改名的文件。
+  
+  如果 `oldpath`、`newpath` 是两个已存在、指向同一个文件的硬链接，`rename()` 什么都不做，直接返回成功。
+  
+  如果 `newpath` 原本存在，但 rename 因为某些原因失败：`rename()` 保证 `newpath` 维持原样、不会丢失。
+  
+  `oldpath` 可以是目录。这种情况下，`newpath` 要么不存在，要么必须是一个**空目录**。
+  
+  如果 `oldpath` 是符号链接：被改名的是这个软链接本身；如果 `newpath` 是符号链接，则这个软链接会被覆盖。
+  return:
+  	成功：0
+  	失败：-1，填充errno
+  */
+  int rename(const char *oldpath, const char *newpath);
+  
+  #include <fcntl.h>           /* Definition of AT_* constants */
+  #include <stdio.h>
+  
+  int renameat(int olddirfd, const char *oldpath,
+              int newdirfd, const char *newpath);
+  
+  int renameat2(int olddirfd, const char *oldpath,
+               int newdirfd, const char *newpath, unsigned int flags);
+  ```
+
+  
+
+- ##### 修改文件的访问时间与更新时间：
+
+  ```c
+  #include <sys/types.h>
+  #include <utime.h>
+  /**
+  	修改filename的访问时间与更新时间。
+  	如果times为NULL，这两个时间会更新成当前时间。
+  	修改时间戳的权限条件：进程拥有合适权限；或者进程的有效用户 ID 等于文件属主 UID；或者 `times == NULL` 并且进程对该文件拥有写权限。
+  	`utime()` 的时间戳精度只有 **1 秒**。
+  	返回值：成功返回 0；失败返回 -1，设置 errno。
+  */
+  int utime(const char *filename, const struct utimbuf *times);
+  
+  struct utimbuf {
+     time_t actime;       /* access time */
+     time_t modtime;      /* modification time */
+  };
+  #include <sys/time.h>
+  /**
+  `utimes()` 和它功能类似，但是 `times` 参数是一个数组而非单个结构体。数组元素是 `timeval` 结构体，精度可达**微秒（1μs）**。
+  `times[0]` 指定新的访问时间，`times[1]` 指定新的修改时间。如果 `times` 为 `NULL`，行为和 `utime()` 类似：访问、修改时间置为当前时间。
+  返回值：成功返回 0；失败返回 -1，设置 errno。
+  */
+  int utimes(const char *filename, const struct timeval times[2]);
+  
+  struct timeval {
+      long tv_sec;        /* 秒 */
+      long tv_usec;       /* 微秒 */
+  };
+  ```
+
+  
+
 - 

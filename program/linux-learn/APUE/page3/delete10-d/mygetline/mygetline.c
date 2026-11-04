@@ -33,8 +33,9 @@ ssize_t mygetline(char **lineptr,size_t *size,FILE *stream){
 }
 
 #define GETLINE_BUFSZ 120
-//判断文件是否存在\n
-static int contain_enter(const char *buf,const ssize_t len,ssize_t *actlen){
+
+//判断字符是否存在\n
+int contain_enter(const char *buf,const ssize_t len,ssize_t *actlen){
 	ssize_t i;
 	for(i = 0;i < len && buf[i] != '\n';++i);
 	if(i >= len){ //到头了，说明不存在\n

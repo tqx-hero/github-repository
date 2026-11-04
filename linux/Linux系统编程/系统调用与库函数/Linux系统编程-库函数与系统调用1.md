@@ -735,6 +735,160 @@
       39 }
      ```
 
+   - ###### 使用`glob(3)` 获取匹配通配符的所有文件名：
+
+     ```c
+     #include <glob.h>
+     /**
+     	通过pattern，找到匹配的所有文件，把文件名列表以数组形式放到pglob指向的结构体中，出现错误会调用errfunc函数。
+     	pattern： 文件匹配的通配字符串。
+     	flags：设置glob函数的行为，具体行为见下。
+     	errfunc：出现错误时的回调函数，如果为NULL，则不会调用，不为NULL时：
+     		epath：出错信息；
+     		eerrno：出错的errno(有bug，如果函数内部在malloc、free等其他函数调用出现错误时，会覆盖该errno)
+     	pglob：
+     		返回的匹配pattern的文件列表。该列表包含的字段见下。
+     		
+     	return:
+     		成功：0
+     		失败：
+     			GLOB_NOSPACE：内存不足。
+     			GLOB_ABORTED：出现读取失败
+     			GLOB_NOMATCH：没有匹配的。该项可通过flags的GLOB_NOCHECK改变其行为。
+     */
+     int glob(const char *pattern, int flags,
+             int (*errfunc) (const char *epath, int eerrno),
+             glob_t *pglob);
+     //释放申请的结构体内的资源。
+     void globfree(glob_t *pglob);
+     //glob结构体：
+     typedef struct {
+        size_t   gl_pathc;    /* 目前为止有效的gl_pathv元素个数  */
+        char   **gl_pathv;    /* 匹配的文件名列表，是一个字符串数组,该数组遵循argv传参要求，即以NULL结尾  */
+        size_t   gl_offs;     /* 给gl_pathv预留的槽的个数，比如取值2，会预留数组的0、1号位置，文件名会从gl_pathv[2]开始填  */
+     } glob_t;
+     ```
+
+     ###### flags取值（下方选项的或运算）以及行为：
+
+     | 标志常量        | 含义                                                         |
+     | --------------- | ------------------------------------------------------------ |
+     | `GLOB_ERR`      | 遇到读取错误（例如目录无读权限）就直接停止返回。默认情况下 glob () 会忽略错误，继续读取其他能访问的目录。 |
+     | `GLOB_MARK`     | 如果匹配到的是目录，在该路径末尾追加 `/`。                   |
+     | `GLOB_NOSORT`   | 不对返回的路径名做排序；仅用来节省排序开销。默认会对结果排序。 |
+     | `GLOB_DOOFFS`   | **在 `gl_pathv` 字符串数组头部预留 `pglob->gl_offs` 个空位，预留位置填充空指针。** |
+     | `GLOB_NOCHECK`  | **没有任何匹配项时，把原始 pattern 放入结果,返回结果 = 0。默认无匹配时返回 `GLOB_NOMATCH`。** |
+     | `GLOB_APPEND`   | 将本次匹配结果追加到上一次 glob () 的结果列表中(不启用该选项默认是覆盖)。**第一次调用 glob () 不能使用该标志**。 |
+     | `GLOB_NOESCAPE` | 反斜杠 `\` 不再作为转义符。默认 `\` 可以转义后面字符，关闭通配符特殊含义。 |
+
+     ###### demo: 使用`glob(3)`函数实现`ls -l *.c ../*.c` 的功能
+
+     ```c
+     #include <stdio.h>
+     #include <stdlib.h>
+     #include <glob.h>
+     #include <unistd.h>
+     //实现ls -l *.c ../*.c的功能
+     
+     //打印目前已经获取到的文件名,第二个参数是预留的槽数
+     void print_glob(const glob_t *glb,const size_t gl_off);
+     
+     int main(int argc,char **argv)
+     {
+             int ret;
+             glob_t glb;
+             glb.gl_offs = 2;
+             if((ret = glob("*.c",GLOB_DOOFFS,NULL,&glb))){//获取当前目录下的所有.C文件，并使用GLOB_DOOFFS选项预留2个位置
+                     fprintf(stderr,"glob1() error\n");
+                     exit(1);
+             }
+     
+             //打印文件列表
+             print_glob(&glb,2);
+     
+             fprintf(stdout,"............................\n");
+     		//以追加方式获取上层目录下的所有.c文件，同样预留2个位置
+             if((ret = glob("../*.c",GLOB_DOOFFS | GLOB_APPEND,NULL,&glb))){
+                  if(ret != GLOB_NOMATCH){ // 如果没出现匹配项，不会报错
+                             fprintf(stderr,"glob2() error\n");
+                             exit(1);
+                     }
+             }
+                 //下方是当前Linux环境下的ls实现，即添加了GLOB_NOCHECK选项，如果没有匹配项，则会把pattern添加到结果中，
+         		//在这里就是把 "../*.c"追加到字符串数组后面
+             /** 
+             if((ret = glob("../*.c",GLOB_DOOFFS | GLOB_APPEND | GLOB_NOCHECK,NULL,&glb))){
+                    fprintf(stderr,"glob2() error\n");
+                    exit(1);
+             }
+     		*/
+             print_glob(&glb,2);
+     
+             //如果没有下方的exec执行，需要释放堆内存
+             //globfree(&glb);
+     
+             glb.gl_pathv[0] = "ls";
+             glb.gl_pathv[1] = "-l";
+     
+             //执行ls
+             execvp("ls",glb.gl_pathv);
+             perror("exec() error");
+             exit(1);
+     }
+     
+     void print_glob(const glob_t *glb,const size_t gl_off){
+             char ** globv;
+             size_t cnt,i;
+             if(!glb)
+                     return;
+             globv = glb->gl_pathv;
+             cnt = glb->gl_pathc;
+             for(i = 0;i < cnt;++i)
+                     fprintf(stdout,"%s\n",globv[gl_off + i]);
+             return;
+     }
+     ```
+
+     执行结果：
+
+     ```bash
+     $ ./glob 
+     
+     bigfile.c
+     flen_stat.c
+     ftype-lstat.c
+     ftype.c
+     glob.c
+     open_rwx.c
+     pattern.c
+     suid.c
+     trunc.c
+     umask.c
+     ............................
+     bigfile.c
+     flen_stat.c
+     ftype-lstat.c
+     ftype.c
+     glob.c
+     open_rwx.c
+     pattern.c
+     suid.c
+     trunc.c
+     umask.c
+     # ../*.c	如果flags启用 GLOB_NOCHECK选项时会在数组内添加该项，并在执行ls时出现下方的错误，这也正是ls的Linux环境下真正实现
+     #ls: cannot access '../*.c': No such file or directory
+     -rw-rw-r-- 1 tqx tqx 624 Nov  3 14:09 bigfile.c
+     -rw-rw-r-- 1 tqx tqx 418 Nov  3 13:47 flen_stat.c
+     -rw-rw-r-- 1 tqx tqx 853 Nov  3 15:32 ftype.c
+     -rw-rw-r-- 1 tqx tqx 854 Nov  3 15:41 ftype-lstat.c
+     -rw-rw-r-- 1 tqx tqx 975 Nov  4 12:07 glob.c
+     -rw-rw-r-- 1 tqx tqx 177 Oct 29 16:06 open_rwx.c
+     -rw-rw-r-- 1 tqx tqx 102 Nov  4 11:09 pattern.c
+     -rw-rw-r-- 1 tqx tqx 348 Oct 29 09:57 suid.c
+     -rw-rw-r-- 1 tqx tqx 197 Oct 29 11:46 trunc.c
+     -rw-rw-r-- 1 tqx tqx 263 Oct 29 16:16 umask.c
+     ```
+
      
 
 9. ##### 信号：

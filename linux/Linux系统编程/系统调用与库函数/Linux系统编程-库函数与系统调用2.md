@@ -15,7 +15,7 @@
   //GNU扩展
   char *secure_getenv(const char *name);
   /**
-  	修改、添加环境变量
+  	将字符串string的指针放到环境变量中，如果文件存在key，则会删除该项重新添加。注意：该函数只会放入字符串的地址，而不是拷贝字符串。如果在putenv()之后修改了string，环境变量中的值也会改变。所以该函数最好使用字符串字面量当做参数，或者在堆上，栈上的话要考虑栈帧弹出的情况。
   	string: 以键值形式将字符串放到环境变量，形式如下：
   		name=value
   		如果name存在，则会修改它的value；
@@ -26,6 +26,24 @@
   		ENOMEM：内存不足
   */
   int putenv(char *string);
+  
+  /**
+  	将参数以name=value字符串的形式放到环境变量，与putenv不同的是，这里放入的是字符串字面量。
+  	overwrite: 如果name已经存在，是否修改
+  		0：不修改。
+  		非0：修改。
+  	return：
+  		0:成功
+  		-1:失败，errno
+  */
+  int setenv(const char *name, const char *value, int overwrite);
+  /**
+  删除环境变量中name的该项，即使没有该项，也不会报错。
+  return：
+  		0:成功
+  		-1:失败，errno
+  */
+  int unsetenv(const char *name);
   ```
 
   demo:
@@ -59,6 +77,36 @@
   PWD = /home/tqx/linux-learn/system_call/Linux_program/page4
   myname = abc #进程内部可以直接获取这个环境变量
   myname = tqx
+  ```
+
+  ###### demo2:`putenv(3)`函数的使用陷阱，设置到环境变量数组的是字符串指针
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  //验证putenv(3)放入环境变量的是字符串地址
+  
+  int main(){
+          char buf[128] = "MYVAL=tqx";	//设置buf
+          if(putenv(buf)){	//buf指针放入环境变量environ
+                  perror("putenv() error");
+                  exit(1);
+          }
+  
+          strcpy(buf,"MYVAL=abc");//修改buf
+          //返回值为abc
+          fprintf(stdout,"%s\n",getenv("MYVAL"));
+          exit(0);
+  }
+  ```
+
+  输出结果：
+
+  ```bash
+  $ ./putenv
+  
+  abc	#环境变量的值已经被strcpy(3)修改
   ```
 
   
@@ -559,6 +607,264 @@
   $ ./getpwent
   
   username = tqx,passwd = x,user ID = 1000, group ID = 1000,userinfo = linux0.11,,,,home dir = /home/tqx,shell = /bin/bash
+  ```
+
+- #### 获取阴影口令文件`/etc/shadow`:
+
+  ```c
+  #include <shadow.h>
+  /**
+  	获取用户名name的阴影口令信息。
+  	return：
+  		成功： 返回结构体指针
+  		失败：	返回NULL，并设置errno
+  	
+  */
+  struct spwd *getspnam(const char *name);
+  
+  //后面这三个函数的用法与getpwent(3)、setpwent(3)、endpwent(3)相同，适用于迭代获取
+  struct spwd *getspent(void);
+  void setspent(void);
+  void endspent(void);
+  
+  //阴影口令信息如下：
+  struct spwd {
+     char *sp_namp;     /* 登录名 */
+     char *sp_pwdp;     /* 加密后的密码 */
+     long  sp_lstchg;   /* Date of last change
+                           (measured in days since
+                           1970-01-01 00:00:00 +0000 (UTC)) */
+     long  sp_min;      /* Min # of days between changes */
+     long  sp_max;      /* Max # of days between changes */
+     long  sp_warn;     /* # of days before password expires
+                           to warn user to change it */
+     long  sp_inact;    /* # of days after password expires
+                           until account is disabled */
+     long  sp_expire;   /* Date when account expires
+                           (measured in days since
+                           1970-01-01 00:00:00 +0000 (UTC)) */
+     unsigned long sp_flag;  /* Reserved */
+  };
+  ```
+
+  
+
+  > ***注意：***
+  >
+  > ***1、加密口令是单向的，所以即使通过读取`/etc/shadow`文件，获取的密码也是密文，无法获取到正常明文。***
+  >
+  > ***2、只有超管才可以读取阴影口令文件，所以程序必须以root的权限执行。普通用户可通过设置可执行程序的set-userID位，将程序设置成root权限。下面以程序 `getspnam.c`举例说明。***
+
+  ```c
+  #include <stdio.h>
+  #include <shadow.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  //获取阴影口令文件getspnam(3)
+  int main(){
+          const char* username;
+          struct spwd *wp;
+          username = getlogin();	//获取用户名
+          wp = getspnam(username); 
+          if(wp == NULL){
+                  perror("getspnam() error");
+                  exit(1);
+          }
+          fprintf(stdout,"username = %s, pwd = %s\n",wp->sp_namp,wp->sp_pwdp);
+          return 0;
+  }
+  ```
+
+  ###### 编译源文件得到可执行程序 `getspnam`.
+
+  ###### 如果执行shell的用户不是root用户，则需要设置root权限：
+
+  ```bash
+  $ chown root getspnam 	#设置可执行程序的所属者为root
+  $ chmod u+s getspnam	#设置程序的set-userID位，作用是启动时内核会将用户有效ID设置成文件所属者ID，也就是root
+  ```
+
+  执行程序 `./getspnam`:
+
+  ```bash
+  $ ./getspnam
+  
+  username = tqx, pwd = $5$mtQ.pgLITDvXOCf9$9x9pmlcJgEW2z70XHHeWllb7P2l5T0Tx.Ksxb0UKk84
+  ```
+
+- #### 获取组信息 `/etc/group`：
+
+  ```c
+  #include <sys/types.h>
+  #include <grp.h>
+  /**
+  	根据组名name(组ID)获取组信息。
+  	return：
+  		成功：返回有效的组信息指针
+  		失败：返回NULL，填充errno
+  */
+  struct group *getgrnam(const char *name);
+  struct group *getgrgid(gid_t gid);
+  
+  //可迭代获取	/etc/group 文件下的所有信息，效果同获取/etc/passwd、/etc/shadow迭代函数。
+  struct group *getgrent(void);
+  void setgrent(void);
+  void endgrent(void);
+  
+  struct group {
+     char   *gr_name;        /* group name */
+     char   *gr_passwd;      /* 密码，以/etc/group文件中的内容为准 */
+     gid_t   gr_gid;         /* group ID */
+     char  **gr_mem;         /* 组成员的名称的字符串数组，以NULL结尾 */
+  };
+  ```
+
+  ###### demo1：通过组名获取
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  #include <sys/types.h>
+  #include <grp.h>
+  //通过组名获取组信息getgrnam(3)
+  int main(){
+          const char *username;
+          struct group *grp;
+          char **grp_mem;
+          username = getlogin();
+          grp = getgrnam(username);
+          if(grp == NULL){
+                  perror("getgrnam() error");
+                  exit(1);
+          }
+          fprintf(stdout,"group name = %s,group ID = %u\n",grp->gr_name,grp->gr_gid);
+          grp_mem = grp->gr_mem;
+          while(*grp_mem)
+                  fprintf(stdout,"%s\n",*grp_mem++);
+          return 0;
+  }
+  ```
+
+  ###### demo2：通过组ID获取
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <grp.h>
+  #include <sys/types.h>
+  #include <unistd.h>
+  //通过gid获取组信息getgrgid(3)
+  int main(){
+          struct group *grp;
+          gid_t gid;
+          char **grp_mem;
+          gid = getgid();//获取组ID
+          if((grp = getgrgid(gid)) == NULL){
+                  perror("getgrgid() error");
+                  exit(1);
+          }
+          fprintf(stdout,"group name = %s,group ID = %u\n",grp->gr_name,grp->gr_gid);
+          //遍历获取组下用户名
+          grp_mem = grp->gr_mem;
+          while(*grp_mem)
+                  fprintf(stdout,"%s\n",*grp_mem++);
+          return 0;
+  }
+  ```
+
+- #### 获取附属组ID：
+
+  附属组指的是用户除了本身组之外，可以添加到其他组下以方便协同工作，其他组就是附属组。
+
+  可添加的附属组上限由常量`NGROUPS_MAX`决定，可使用：`sysconf(_SC_NGROUPS_MAX)` 来获取该值。
+
+  可以通过以下函数获取、设置(root权限)附属组.
+
+  ```c
+  #include <unistd.h>
+  /**
+  	man(3)，获取附属组ID集合。
+  	gidsetsize: 传入的缓冲区grouplist的大小，表示最多需要填入数组元素个数。如果为0，则不会填入数组
+  	grouplist： 存放附属组ID的缓冲区。
+  	return：
+  		成功：返回放入缓冲区的实际个数。
+  		失败：返回-1，填充errno
+  */
+  int getgroups(int gidsetsize, gid_t grouplist[]);
+  
+  /*************************下面的是超管特有权限********************************************************/
+  #include <sys/types.h>
+  #include <unistd.h>
+  #include <grp.h>
+  int setgroups(size_t size, const gid_t *list);
+  
+  #include <sys/types.h>
+  #include <grp.h>
+  int initgroups(const char *user, gid_t group);
+  ```
+
+  >  1、对于`getgroups(3)`，不同系统实现有所不同，有些系统会把用户的有效组ID也会填入数组中，所以要想保证获取所有的结果，长度`gidsetsize` 要等于 `NGROUPS_MAX + 1`。
+  >
+  > 2、在Linux下，`NGROUPS_MAX`的值很有可能是`65536` ，换算成字节就是 `64KB` 个 `gid_t` 类型，在申请数组空间时必须注意栈是否能放得下，或者干脆在堆上申请空间，一劳永逸。
+  >
+  > 3、setgroups(2)与initgroups(3)是超管在用户登录时调用该函数，对用户进行初始化的，只有少数几个函数会用到。
+
+  demo:
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  //获取附属组信息getgroups(3)
+  int main(){
+          long ngroup_max;
+          int current_groups;
+          int i;
+          gid_t *gids;
+          //获取系统设置的最大组上限,申请内存
+          ngroup_max = sysconf(_SC_NGROUPS_MAX);
+          fprintf(stdout,"mgroups_max = %ld\n",ngroup_max);
+          if((gids = malloc(ngroup_max +1)) == NULL){
+                  perror("malloc() error");
+                  exit(1);
+          }
+          current_groups = getgroups(ngroup_max,gids);
+          for(i = 0;i < current_groups;++i)
+                  fprintf(stdout,"%u\n",gids[i]);
+          free(gids);
+          return 0;
+  }
+  ```
+
+  输出结果:
+
+  ```bash
+  $ ./getgroups
+  
+  mgroups_max = 65536	#Linux下实际NGROUPS_MAX大小
+  4
+  24
+  27
+  30
+  46
+  120
+  132
+  133
+  1000	#该项是用户的实际组ID，也是有效组ID，在Linux下默认也添加到了返回数组中
+  
+  #下面是直接查询/etc/group文件，搜索用户关联的所有附属组 + 有效组
+  $ grep  "tqx" /etc/group
+  
+  adm:x:4:syslog,tqx	#以 ： 隔开的分别代表 组名:密码:组ID:组成员
+  cdrom:x:24:tqx
+  sudo:x:27:tqx
+  dip:x:30:tqx
+  plugdev:x:46:tqx
+  lpadmin:x:120:tqx
+  lxd:x:132:tqx
+  tqx:x:1000:
+  sambashare:x:133:tqx
   ```
 
   

@@ -62,4 +62,113 @@
 
   
 
+- #### 函数之间的无条件跳转`setjmp(3)` / `longjmp(3)` :
+
+  ```c
+  #include <setjmp.h>
+  /**
+  	将调用时的运行环境信息（通常包括栈指针、指令指针，还可能包含其他寄存器值、信号掩码）保存到缓冲区 `env`，供后续 `longjmp()` 使用。
+  	第一次调用 `setjmp()` 时，返回值是 `0`。
+  	env： 要保存现场的缓冲区，建议设定为全局变量，这样多个函数之间可共用
+  	return：
+  		成功：第一次调用该函数时，返回值固定是0.
+  			后续返回值根据longjmp(3)的第二个参数val决定：
+  				val = 0 ： 返回1
+  				val ！=0： 返回val
+  		可以通过返回值来辨别从哪个函数跳转过来的
+  */
+  int setjmp(jmp_buf env);
+  /**
+  	可以设定是否保存进程的信号掩码。除此之外功能与setjmp(3)相同。
+  	env：存放现场数据的缓冲区
+  	savesigs：是否将进程的信号掩码保存到缓冲区
+  		0：不保存，功能等价于setjmp(3)
+  		非0：保存信号掩码。当使用siglongjmp(3)返回时，进程的信号掩码也会恢复到之前。
+  */
+  int sigsetjmp(sigjmp_buf env, int savesigs);
+  
+  /**
+  	栈帧之间的跳转，并设定val，setjmp(3)那边作为返回值处理。
+  	使用保存在 `env` 中的信息，将控制流切回到当初调用 `setjmp()` 的位置，并把栈 “回卷” 到 `setjmp()` 那一刻的状态。
+  	env： setjmp(3)存放的栈的现场的缓冲区。
+  	val：要传到setjmp(3)的值。
+  */
+  void longjmp(jmp_buf env, int val);
+  //返回到sigsetjmp(3)位置，与这个函数绑定使用
+  void siglongjmp(sigjmp_buf env, int val);
+  ```
+
+  > 1、如果要保存进程的信号掩码，不要使用 `setjmp(3)`，必须使用 `sigsetjmp(3)`。
+  > 2、`setjmp(3)` 的功能是保存栈的状态到缓冲区，当调用 `longjmp(3)` 时，会把缓冲区中的栈信息覆盖到当前栈，调用之前的栈帧都会消失。
+  >
+  > 3、保存现场的数据：
+  >
+  > ​	已确定的是栈指针、`EIP`寄存器(也就是PC寄存器)、进程的信号掩码(使用 `sigsetjmp(3)` 时)；
+  >
+  > 4、不会保存的数据：
+  >
+  > ​	全局变量、静态区变量不会恢复(因为只会保存栈与PC相关信息)。
+  >
+  > 5、至于自动变量(`auto`显式或隐式声明的局部变量)，不同的系统可能会有不同的行为，如果要明确不回滚，可以使用`volatile`修饰。
+
+  ###### demo:函数间的跳转示例
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <setjmp.h>
+  //使用setjmp(3)、longjump(3)实现非局部跳转，也就是栈帧之间跳转
+  jmp_buf jb;
+  int cnt;	//分别定义静态变量、全局变量
+  static int num;
+  void f1(){
+          fprintf(stdout,"f1() ...\n");
+          longjmp(jb,1);
+  }
+  
+  void f2(){
+          fprintf(stdout,"f2() ...\n");
+          longjmp(jb,2);
+  }
+  
+  int main(){
+          int ret;
+          volatile int autonum = 100; //定义不让编译器优化的自动局部变量
+          cnt += 20;
+          num = 30;
+          if(!(ret = setjmp(jb))){
+                  //刚执行setjmp(3)保存现场,longjmp(3)还未被调用,返回值等于0
+                  fprintf(stdout,"into the func...\n");
+                  cnt += 1;
+                  num += 1;
+                  autonum += 1000;
+                  f1();
+          }else if(ret == 1){//从longjmp(3)设置值1那里跳转过来
+                  fprintf(stdout,"从1那里跳转过来的...\n");
+                  f2();
+          }else {
+                  fprintf(stdout,"从2那里跳转过来的..\n");
+          }
+          fprintf(stdout,"正在退出...\n");
+          fprintf(stdout,"cnt = %d,num = %d,autonum = %d\n",cnt,num,autonum);
+          exit(0);
+  }
+  ```
+
+  输出结果：
+
+  ```bash
+  $ ./longjump
+  
+  into the func...	#第一次执行setjmp(3)
+  f1() ...			#执行f1()
+  从1那里跳转过来的...	#从f1()跳转到了main()函数的setjmp(3)位置，并且走ret == 1分支
+  f2() ...			#进入f2()
+  从2那里跳转过来的..		#从f2()跳转回来，走 ret == 2分支
+  正在退出...
+  cnt = 21,num = 31,autonum = 1100	#这三种变量恢复现场后不会回滚。
+  ```
+
+  
+
 - 

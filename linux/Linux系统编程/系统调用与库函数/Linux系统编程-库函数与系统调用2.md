@@ -15,7 +15,7 @@
   //GNU扩展
   char *secure_getenv(const char *name);
   /**
-  	修改、添加环境变量
+  	将字符串string的指针放到环境变量中，如果文件存在key，则会删除该项重新添加。注意：该函数只会放入字符串的地址，而不是拷贝字符串。如果在putenv()之后修改了string，环境变量中的值也会改变。所以该函数最好使用字符串字面量当做参数，或者在堆上，栈上的话要考虑栈帧弹出的情况。
   	string: 以键值形式将字符串放到环境变量，形式如下：
   		name=value
   		如果name存在，则会修改它的value；
@@ -26,6 +26,24 @@
   		ENOMEM：内存不足
   */
   int putenv(char *string);
+  
+  /**
+  	将参数以name=value字符串的形式放到环境变量，与putenv不同的是，这里放入的是字符串字面量。
+  	overwrite: 如果name已经存在，是否修改
+  		0：不修改。
+  		非0：修改。
+  	return：
+  		0:成功
+  		-1:失败，errno
+  */
+  int setenv(const char *name, const char *value, int overwrite);
+  /**
+  删除环境变量中name的该项，即使没有该项，也不会报错。
+  return：
+  		0:成功
+  		-1:失败，errno
+  */
+  int unsetenv(const char *name);
   ```
 
   demo:
@@ -59,6 +77,36 @@
   PWD = /home/tqx/linux-learn/system_call/Linux_program/page4
   myname = abc #进程内部可以直接获取这个环境变量
   myname = tqx
+  ```
+
+  ###### demo2:`putenv(3)`函数的使用陷阱，设置到环境变量数组的是字符串指针
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  //验证putenv(3)放入环境变量的是字符串地址
+  
+  int main(){
+          char buf[128] = "MYVAL=tqx";	//设置buf
+          if(putenv(buf)){	//buf指针放入环境变量environ
+                  perror("putenv() error");
+                  exit(1);
+          }
+  
+          strcpy(buf,"MYVAL=abc");//修改buf
+          //返回值为abc
+          fprintf(stdout,"%s\n",getenv("MYVAL"));
+          exit(0);
+  }
+  ```
+
+  输出结果：
+
+  ```bash
+  $ ./putenv
+  
+  abc	#环境变量的值已经被strcpy(3)修改
   ```
 
   

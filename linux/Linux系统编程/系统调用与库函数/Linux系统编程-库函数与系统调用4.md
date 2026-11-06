@@ -171,4 +171,184 @@
 
   
 
+- #### 获取资源限制值：
+
+  - **软限制（`rlim_cur，soft limit`）**：日常生效的警告 / 触发阈值，进程**自己可以把它调高，但最高不能超过硬限制**；超限会触发信号 / 失败。
+  - **硬限制（`rlim_max，hard limit`）**：这是该资源的天花板，是软限制能到达的上限；**普通进程不能调高硬限制，只能降低硬限制，但是降低后就无法太高了，只有特权进程（`root/CAP_SYS_RESOURCE`）才可以抬高硬限制**。
+
+  ```c
+  #include <sys/resource.h>
+  /**
+  	根据资源类型获取进程所拥有的该资源当前值与最大值限制。
+  	resource：资源类型，具体见下方表格
+  	rlp：存放限制值的结构体地址，getrlimit(3)则会对结果回填，setrlimit(3)则会将该地址数据设置到环境。
+  	return：
+  		成功：0
+  		失败：-1，填充errno
+  */
+  int getrlimit(int resource, struct rlimit *rlp);
+  int setrlimit(int resource, const struct rlimit *rlp);
+  
+  typedef unsigned long rlim_t;
+  struct rlimit {
+      rlim_t rlim_cur;	//当前限制，也叫软限制
+      rlim_t rlim_max;	//软限制的最大限度值，也叫硬限制(硬限制必须要不小于软限制)
+  }
+  ```
+
+  资源类型：
+
+  | 宏名            | 含义                                             | 单位 | 超限行为                                                     |
+  | --------------- | ------------------------------------------------ | ---- | ------------------------------------------------------------ |
+  | `RLIMIT_CORE`   | 进程可生成的 core 文件最大尺寸                   | 字节 | 限制值为 0：禁止生成 core 文件；超出上限时，core 文件写到该大小就停止 |
+  | `RLIMIT_CPU`    | 进程最多可占用的 CPU 时长                        | 秒   | 超出上限发送 `SIGXCPU`；若进程捕获 / 忽略该信号，或该进程所有线程阻塞该信号，行为未定义 |
+  | `RLIMIT_DATA`   | 进程数据段最大尺寸(`data+bss+heap`)              | 字节 | 超出时 `malloc()` 失败，`errno = ENOMEM`                     |
+  | `RLIMIT_FSIZE`  | 进程可创建的单个文件最大尺寸                     | 字节 | write /truncate 将超限时，向线程发送 `SIGXFSZ`；线程阻塞该信号、或进程捕获 / 忽略该信号时，继续扩文件会失败，`errno = EFBIG` |
+  | `RLIMIT_NOFILE` | 新分配文件描述符的上限（实际最大 fd = 该值 − 1） | 计数 | 超出时分配 fd 的函数失败，`errno = EMFILE`；限制一个进程持有的文件描述符总数 |
+  | `RLIMIT_STACK`  | 初始线程栈的最大尺寸                             | 字节 | 实现不会自动把栈增长超过该限制；超限发送 `SIGSEGV`；若线程阻塞该信号，或进程捕获 / 忽略且未配置备用栈，发送信号前会将处置重置为 `SIG_DFL` |
+  | `RLIMIT_AS`     | 进程整个地址空间可用内存上限                     | 字节 | 超出时 `malloc()`、`mmap()` 失败，`errno = ENOMEM`；同时栈的自动增长也会失效，并触发上面栈超限相关效果 |
+
+  ***对于返回值，有以下情况：***
+
+  ***1、如果返回值还没有限制，返回 `RLIM_INFINITY` .***
+
+  ***2、如果返回值过大，以至于超过了软硬限制，返回 `RLIM_SAVED_MAX` 或 `RLIM_SAVED_CUR`***
+
+  ***3、除以上情况，值正常返回。***
+
+  ###### 对于设置值时：
+
+  > 调用 `setrlimit()` 时：
+
+  - 如果请求的新限制值是 `RLIM_INFINITY`：新限制设为「无限制」；
+  - 否则，如果请求值是 `RLIM_SAVED_MAX`：新限制取对应的**已保存硬限制**；
+  - 否则，如果请求值是 `RLIM_SAVED_CUR`：新限制取对应的**已保存软限制**；
+  - 其余情况：直接使用传入的这个数值作为新限制。
+
+  另外：如果对应的那条已保存限制可以无损存入 `rlim_t`，则该保存值会被这个新限制覆盖。
+
+  > 除非之前某次 `getrlimit()` 在该资源上恰好返回过 `RLIM_SAVED_MAX` / `RLIM_SAVED_CUR`，否则你直接把限制设为这两个宏之一时，行为是未定义的。
+
+  
+
+  ###### demo：获取Linux系统下的限制值：
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <sys/resource.h>
+  #include <setjmp.h>
+  //getrlimit(3)函数的使用
+  
+  //使用了宏替换，将宏名与宏值一并带过去
+  #define do_get(name) print_limit(#name,name)
+  
+  sigjmp_buf jb;
+  
+  void print_limit(char *name,int value);
+  
+  int main(){
+          if(!sigsetjmp(jb,1)){
+                  do_get(RLIMIT_AS);
+                  do_get(RLIMIT_CORE);
+                  do_get(RLIMIT_CPU);
+                  do_get(RLIMIT_DATA);
+                  do_get(RLIMIT_FSIZE);
+                  do_get(RLIMIT_NOFILE);
+                  do_get(RLIMIT_STACK);
+  #ifdef  RLIMIT_MSGQUEUE
+                  do_get(RLIMIT_MSGQUEUE);
+  #endif
+  
+  #ifdef  RLIMIT_NICE
+                  do_get(RLIMIT_NICE);
+  #endif
+  
+  #ifdef  RLIMIT_NPROC
+                  do_get(RLIMIT_NPROC);
+  #endif
+  
+  #ifdef  RLIMIT_RSS
+                  do_get(RLIMIT_RSS);
+  #endif
+  
+  #ifdef  RLIMIT_SIGPENDING
+                  do_get(RLIMIT_SIGPENDING);
+  #endif
+  
+  #ifdef  RLIMIT_SWAP
+                  do_get(RLIMIT_SWAP);
+  #endif
+          }else
+                  fprintf(stderr,"getrlimit fail.\n");
+          return 0;
+  }
+  
+  void print_limit(char *name,int value){
+          struct rlimit limit;
+          if(getrlimit(value,&limit) < 0){
+                  perror("getrlimit() error");
+                  siglongjmp(jb,1);
+          }
+          fprintf(stdout,"%s  ",name);
+          if(limit.rlim_cur == RLIM_INFINITY)
+                  fprintf(stdout,"(unlimited)  ");
+          else if(limit.rlim_cur == RLIM_SAVED_CUR)
+                  fprintf(stdout,"(too big)  ");
+          else
+                  fprintf(stdout,"%lu  ",limit.rlim_cur);
+  
+          if(limit.rlim_max == RLIM_INFINITY)
+                  fprintf(stdout,"(unlimited)  ");
+          else if(limit.rlim_max == RLIM_SAVED_MAX)
+                  fprintf(stdout,"(too big)  ");
+          else
+                  fprintf(stdout,"%lu  ",limit.rlim_max);
+          fprintf(stdout,"\n");
+          return;
+  }
+  ```
+
+  输出结果：
+
+  ```bash
+  $ ./getrlimit
+  
+  RLIMIT_AS  (unlimited)  (unlimited)
+  RLIMIT_CORE  0  (unlimited)
+  RLIMIT_CPU  (unlimited)  (unlimited)
+  RLIMIT_DATA  (unlimited)  (unlimited)
+  RLIMIT_FSIZE  (unlimited)  (unlimited)
+  RLIMIT_NOFILE  1024  1048576
+  RLIMIT_STACK  8388608  (unlimited)
+  RLIMIT_MSGQUEUE  819200  819200
+  RLIMIT_NICE  0  0
+  RLIMIT_NPROC  15115  15115
+  RLIMIT_RSS  (unlimited)  (unlimited)
+  RLIMIT_SIGPENDING  15115  15115
+  ```
+
+  ###### demo:设置栈大小,软限制为1M，硬限制为8M
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <sys/resource.h>
+  //setrlimit(3)函数的使用
+  int main(){
+          //这里直接设置栈大小
+          struct rlimit limit,r_limit;
+          limit.rlim_cur = 1024 * 1024;
+          //limit.rlim_max = RLIM_INFINITY;
+          limit.rlim_max = 8 * 1024 * 1024;
+          if(setrlimit(RLIMIT_STACK,&limit) < 0)
+                  perror("setrlimit() error");
+          //读取栈大小限制
+          if(getrlimit(RLIMIT_STACK,&r_limit) < 0)
+                  perror("getrlimit() error");
+          //fprintf(stdout,"cur = %lu,max == unlimit ? %d\n",r_limit.rlim_cur,r_limit.rlim_max == RLIM_INFINITY);
+          fprintf(stdout,"cur = %lu,max == %lu\n",r_limit.rlim_cur,r_limit.rlim_max);
+          return 0;
+  }
+
 - 

@@ -351,4 +351,158 @@
           return 0;
   }
 
+- #### 加密函数crypt(3):
+
+  ```c
+  #define _XOPEN_SOURCE       /* See feature_test_macros(7) */
+  #include <unistd.h>
+  /**
+  	给输入口令按照某个salt进行加密。返回密文。
+  	key：真实口令
+  	salt：是从集合 `[a–zA–Z0–9./]` 中选出的一个两字符字符串。该串用于把算法扰动为 4096 种不同变体之一。
+  	关于salt的构成参考下面的描述。
+  	return:
+  		成功：加密后的字符串
+  		失败：NULL，填充errno
+  */
+  char *crypt(const char *key, const char *salt);
+  
+  #define _GNU_SOURCE         /* See feature_test_macros(7) */
+  #include <crypt.h>
+  
+  char *crypt_r(const char *key, const char *salt,
+               struct crypt_data *data);
+  
+  Link with -lcrypt.
+  ```
+
+  ###### salt：
+
+  glibc2 版本的该函数额外支持多种哈希算法。
+  如果传入的 salt 是以 `$id$` 开头、并以 `$` 收尾的字符串：
+
+  ```
+  $id$salt$encrypted
+  ```
+
+  则不会使用老式 DES 流程；`id` 用来指定采用哪一种算法，同时决定后续串如何解析。支持的 id：
+
+  表格
+
+  | ID   | 算法                                                      |
+  | ---- | --------------------------------------------------------- |
+  | 1    | MD5                                                       |
+  | 2a   | Blowfish（主线 glibc 原生不支持，仅部分发行版打补丁加入） |
+  | 5    | SHA‑256（glibc 2.7 起）                                   |
+  | 6    | SHA‑512（glibc 2.7 起）                                   |
+
+  因此 `$5$salt$encrypted` 代表 SHA‑256 口令哈希，`$6$salt$encrypted` 代表 SHA‑512。
+
+  这里的 salt，指 `$id$` 之后最多 16 个字符。`encrypted` 段才是最终算出的哈希摘要。这一段长度固定：
+
+  - MD5：22 字符
+  - SHA‑256：43 字符
+  - SHA‑512：86 字符
+
+  salt 和 encrypted 部分的字符都取自集合 `[a–zA–Z0–9./]`。在 `MD5`、`SHA` 这几套实现里，**整个口令都会参与计算**，不再像老 DES crypt 那样只取前 8 字节。
+
+- #### 暂时关闭终端回显功能，以指定方式显示内容：
+
+  ```c
+  #include <unistd.h>
+  /**
+  	显示prompt内容的提示，阻塞等待终端输入内容，不显示键入内容，返回键入的内容。相较于gets(3)，多了提示字符串，少了显示输入的内容，适用于口令输入。
+  	(该函数已被废弃，多线程不安全，可使用termios(3)的ECHO选项设置)
+  */
+  char *getpass( const char *prompt);
+  ```
+
+  ##### demo：实现用户登录密码校验：
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  #include <string.h>
+  #include <shadow.h>
+  #include <termios.h>
+  
+  //加密算法
+  
+  struct spwd* Getspnam(const char* name){
+          struct spwd * spw;
+          if(!(spw = getspnam(name))){
+                  perror("getspnam() error");
+                  exit(1);
+          }
+          return spw;
+  }
+  
+  char * Getpass(const char*prompt){
+          char * pwd;
+          if(!(pwd = getpass(prompt))){
+                  perror("getpass() error");
+                  exit(1);
+          }
+          return pwd;
+  }
+  
+  char* Crypt(const char* pwd,const char* salt){
+          char * ret;
+          if(!(ret = crypt(pwd,salt))){
+                  perror("crypt() error");
+                  exit(1);
+          }
+          return ret;
+  }
+  
+  int main(int argc,char **argv){
+          char *encode,*getpass_info;
+          struct spwd *shadow_info;
+          struct termios old,news;
+          char pwd[512];
+          if(argc < 2){
+                  fprintf(stderr,"需要传入用户名\n");
+                  exit(1);
+          }
+          //需要键入密码,下面是2种方法：
+          //1、使用getpass(3)获取的字符串，就是后面的pwd
+          //getpass_info = Getpass("Please enter your passwd: ");
+  
+          //2、使用termios选项
+          fprintf(stdout,"Please enter your passwd : ");
+          fflush(stdout);
+          tcgetattr(STDIN_FILENO,&old); //获取当前输入流的终端属性
+          memcpy(&news,&old,sizeof(news));
+          news.c_lflag &= ~ECHO; //设置关闭回显功能选项
+          news.c_lflag &= ~ECHONL;
+          tcsetattr(STDIN_FILENO,TCSAFLUSH,&news); //关闭回显功能
+  	    //获取阴影口令上下文
+          fgets(pwd,sizeof(pwd),stdin);
+          tcsetattr(STDIN_FILENO,TCSAFLUSH,&old);   //恢复现场 
+          pwd[strlen(pwd) - 1] = 0;	//去掉输入的 \n
+          fprintf(stdout,"\n");
+          shadow_info = Getspnam(argv[1]); //通过参数用户名获取阴影口令文件的内容
+          encode = Crypt(pwd,shadow_info->sp_pwdp); //加密，使用键入的口令 + 阴影口令，函数对阴影口令会自动截取前3个$的有效子串进行加密
+          fprintf(stdout,"encode = %s\n",encode);
+          fprintf(stdout,"shadow_encode = %s\n",shadow_info->sp_pwdp);
+          fprintf(stdout,"match ? %d\n",strcmp(encode,shadow_info->sp_pwdp) == 0); //比较是否匹配
+          return 0;
+  }
+  ```
+
+  ###### 输出结果：注意获取阴影口令函数是需要root权限的。
+
+  ```bash
+   ./crypt tqx
+   
+  Please enter your passwd :	#关闭了回显功能，内容就不会显示
+  密码是：tqx	#恢复回显功能后的输出
+  encode = $6$tND/cQczrwpCPBb8$d0jB1/0CM9K86DMeDy/dNff8MDDHVImDqJ80bVXtT7hj5mxQ/5F1bzUArQGLpNYvyrhB8Sp9TvunTBeqRZUik/
+  shadow_encode = $6$tND/cQczrwpCPBb8$d0jB1/0CM9K86DMeDy/dNff8MDDHVImDqJ80bVXtT7hj5mxQ/5F1bzUArQGLpNYvyrhB8Sp9TvunTBeqRZUik/
+  match ? 1
+  ```
+
+  
+
 - 

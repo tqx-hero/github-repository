@@ -1,1 +1,2 @@
-CFLAGS += -D_XOPEN_SOURCE -lcrypt
+CFLAGS += -D_XOPEN_SOURCE 
+LDFLAGS += -lcrypt

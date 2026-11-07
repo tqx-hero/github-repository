@@ -256,6 +256,31 @@
   time_t mktime(struct tm *tm);
   
   /**
+  	将tm结构体按照format格式转化成字符串，放到s中，s的最大长度为max。功能类似于printf(3)。
+  	s：存放格式化后字符串的缓冲区
+  	max：缓冲区的最大长度，如果字符串超出这个长度，结果返回0，放入字符串失败。
+  	format：格式化字符串，等同于printf中的fmt，具体支持的格式参考APUE第六章6.10节第154页.或strftime(3)。
+  	tm：时间结构体，可通过localtime(3)或gmtime(3)获得。
+  	return：
+  		转化成功：返回转化后字符串的长度(strlen(3)).
+  		失败：如果缓冲区过小，字符串放不下，返回0，缓冲区不会放入字符串。
+  */
+  size_t strftime(char *s, size_t max, const char *format,const struct tm *tm);
+  
+  #define _XOPEN_SOURCE       /* See feature_test_macros(7) */
+  #include <time.h>
+  /**
+  	将格式化时间的字符串转化成结构体tm。功能类似于sscanf(3)。
+  	s: 要格式化的字符串。
+  	format：转化格式。具体参考APUE第六章6.10节第156页。或strptime(3).
+  	tm：存放转化后时间的结构体地址。
+  	return：
+  		成功：返回s未格式化处理的第一个字节地址。如果字符串全部处理成功，返回的是字符串的\0字节的地址。总之返回的都是有效地址
+  		失败：返回NULL
+  */
+  char *strptime(const char *s, const char *format, struct tm *tm);
+  
+  /**
   tm_sec 分钟后的秒数，通常范围为 0 至 59，但可达到 60，用于容纳闰秒。
   tm_min 小时后的分钟数，范围为 0 至 59。
   tm_hour 午夜过后的小时数，范围为 0 至 23。
@@ -277,6 +302,93 @@
       int tm_yday;   /* 一年中的第几天（0-365，1月1日 = 0） */
       int tm_isdst;  /* 夏令时标记 */
   };
+  ```
+
+  ###### demo1: 使用 `strftime(3)` 转化成字符串
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  #include <string.h>
+  #include <time.h>
+  //使用strftime转化成字符串
+  time_t Time(time_t* tm){
+          time_t ctime;
+          if((ctime = time(tm)) == (time_t) (-1))
+          {
+                  perror("time() error");
+                  exit(1);
+          }
+          return ctime;
+  }
+  
+  struct tm *Localtime(const time_t *tmp){
+          struct tm *temp;
+          if(!(temp = localtime(tmp))){
+                  perror("localtime() error");
+                  exit(1);
+          }
+          return temp;
+  }
+  
+  size_t Strftime(char *s, size_t max, const char *format,const struct tm *tm){
+          size_t ret;
+          if(!(ret = strftime(s,max,format,tm))){
+                  fprintf(stderr,"strftime() error!\n");
+                  exit(1);
+          }
+          return ret;
+  }
+  
+  int main(){
+          time_t tm;
+          struct tm * tmp;
+          char timebuf[128];
+          tm = Time(NULL);
+          tmp = Localtime(&tm);
+          Strftime(timebuf,sizeof(timebuf),"%Y-%m-%d %H:%M:%S",tmp); //将当前时间以格式化字符串形式输出
+          fprintf(stdout,"当前时间是 : %s\n",timebuf);
+          return 0;
+  }
+  ```
+
+  ###### demo2：使用`strptime(3)`将字符串转化成结构体
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  #include <string.h>
+  #include <time.h>
+  
+  size_t Strftime(char *s, size_t max, const char *format,const struct tm *tm){
+          size_t ret;
+          if(!(ret = strftime(s,max,format,tm))){
+                  fprintf(stderr,"strftime() error!\n");
+                  exit(1);
+          }
+          return ret;
+  }
+  
+  char * Strptime(const char *s, const char *format, struct tm *tm){
+          char* ret;
+          if(!(ret = strptime(s,format,tm))){
+                  perror("strptime() errpr");
+                  exit(1);
+          }
+          return ret;
+  }
+  
+  int main(){
+          time_t tm;
+          struct tm  tmp;
+          char  timebuf[128],ptimebuf[128] = "2026-11-07 14:51:10";
+          Strptime(ptimebuf,"%Y-%m-%d %H:%M:%S",&tmp);	//在字符串中提取时间放入结构体
+          Strftime(timebuf,sizeof(timebuf),"%Y-%m-%d %H:%M:%S",&tmp);	//将结构体的内容还原成格式化字符串输出
+          fprintf(stdout,"当前时间是 : %s\n",timebuf);
+          return 0;
+  }
   ```
 
   

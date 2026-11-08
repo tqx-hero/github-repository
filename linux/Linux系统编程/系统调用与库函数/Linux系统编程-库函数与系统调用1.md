@@ -2394,9 +2394,9 @@
 
     optstring 是包含合法选项字符的字符串。如果某个字符后面紧跟冒号，代表该选项需要参数，getopt () 会将指向后续文本的指针存入 optarg，这段文本可以是同一个 argv 元素内的后续内容，或是下一个 argv 元素的内容。两个连续冒号代表该选项接收可选参数；如果当前 argv 元素内（也就是选项名所在的同一个单词里，例如 `-oarg`）带有文本，则该文本会存入 optarg，否则 optarg 置为 0。这是 GNU 的扩展特性。如果 optstring 中包含 W 且后面跟分号，那么 `-W foo` 会被当作长选项 `--foo` 处理。（POSIX.2 将 `-W` 选项保留给实现扩展使用。）该行为属于 GNU 扩展，glibc 2 之前的库不支持。
 
-    默认情况下，getopt () 在扫描过程中会重排 argv 的内容，最终让所有非选项参数排在末尾。该函数还实现了另外两种工作模式：如果 optstring 的首字符是 `+`，或者设置了环境变量 POSIXLY_CORRECT，那么一旦遇到非选项参数，选项解析就立即停止。如果 optstring 的首字符是 `-`，那么每一个非选项 argv 元素都会被当作编码为 1 的选项的参数来处理。（该模式供一类程序使用，这类程序允许选项和其他 argv 元素任意混排，并且需要区分二者的顺序。）特殊参数 `--` 会强制终止选项扫描，不受扫描模式影响。
+    默认情况下，`getopt ()` 在扫描过程中会重排 `argv` 的内容，最终让所有非选项参数排在末尾。该函数还实现了另外两种工作模式：如果 optstring 的首字符是 `+`，或者设置了环境变量 POSIXLY_CORRECT，那么一旦遇到非选项参数，选项解析就立即停止。**如果 optstring 的首字符是 `-`，那么每一个非选项 argv 元素都会返回 `1`。**（该模式供一类程序使用，这类程序允许选项和其他 argv 元素任意混排，并且需要区分二者的顺序。）特殊参数 `--` 会强制终止选项扫描，不受扫描模式影响。
 
-    在解析选项列表的过程中，getopt () 可以检测两类错误：(1) 出现了 optstring 中未定义的选项字符；(2) 缺少选项参数（例如命令行末尾的某个选项没有附带预期参数）。这类错误的处理与上报规则如下：
+    在解析选项列表的过程中，`getopt (3)` 可以检测两类错误：(1) 出现了 `optstring` 中未定义的选项字符；(2) 缺少选项参数（例如命令行末尾的某个选项没有附带预期参数）。这类错误的处理与上报规则如下：
 
     - 默认情况下，getopt () 会在标准错误输出打印错误信息，将出错的选项字符存入 optopt，并且函数返回 `?`。
     - 如果调用者将全局变量 opterr 设置为 0，getopt () 就不会向stderr打印错误信息。调用者可以通过判断函数返回值是否为 `?` 来识别错误。（opterr 默认值非零。）
@@ -2489,6 +2489,100 @@
     options : l
     options : r
     option need a value		#选项后面没检测到参数，返回:
+    ```
+
+    ###### demo:使用`getopt(3)`实现对当前时间的选择性输出，如果参数附加额外的文件路径，则会将终端的输出重定向到文件
+
+    ```c
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <unistd.h>
+    #include <string.h>
+    #include <time.h>
+    #define FMT_BUFSIZ 512
+    #define TIME_BUF_SIZ 512
+    #define         SWITCH_OPT(num,str)     case num :                                       \
+                                                    strncat(fmtbuf,str,remain_size);                         \
+                                                    remain_size = FMT_BUFSIZ - strlen(fmtbuf);\
+                                            break
+    //使用命令行参数解析函数getopt(3)
+    //以解析当前时间为例，根据不同的选项输入，返回选项所代表的时间值
+    /**
+     *      Y：年
+     *      m：月
+     *      d：日
+     *      H：小时
+     *      M：分钟
+     *      S：秒
+     *		如果额外附带参数，则会将它看作文件路径，并将标准输出重定向到该文件		
+     */
+    //fopen(3)的包裹函数
+    FILE *Fopen(const char *name,const char *mode){
+            FILE *fdp;
+            if(!(fdp = fopen(name,mode))){
+                    perror("fopen() error");
+                    exit(1);
+            }
+            return fdp;
+    }
+    
+    int main(int argc,char ** argv){
+            //1、getopt(3)函数解析命令选项，生成fmt字符出
+            int optval;
+        	int fd;
+            FILE *fdp;
+            char fmtbuf[FMT_BUFSIZ],time_buf[TIME_BUF_SIZ];
+            size_t remain_size;
+            time_t ctime;
+            struct tm *tmp;
+            remain_size = FMT_BUFSIZ;
+            fdp = NULL;
+        	//开头添加了 - ，非选项参数返回值就是1，并且可以通过 optind - 1获取它的字符串value(optind指针永远指向下一个参数，所以要 -1)
+            while((optval = getopt(argc,argv,"-YmdHMS")) > 0){	
+                    switch(optval){
+                            SWITCH_OPT('Y',"%Y ");
+                            SWITCH_OPT('m',"%m ");
+                            SWITCH_OPT('d',"%d ");
+                            SWITCH_OPT('H',"%H ");
+                            SWITCH_OPT('M',"%M ");
+                            SWITCH_OPT('S',"%S ");
+                            case 1:	//返回1情况下，就打开参数表示的文件流，准备后续的重定向。
+                                    fdp = Fopen(argv[optind - 1],"w");
+                                    break;
+                            default:
+                                    break;
+                    }
+            }
+        	//如果存在写入的文件，使用dup2(2)将标准输出重定向
+            if(fdp){ 
+                	fd = fileno(fdp);
+                	if(fd != STDOUT_FILENO){
+                        dup2(fd,STDOUT_FILENO);
+    	                fclose(fdp);
+                    }
+            }
+            //2、根据fmt使用strftime(3)解析当前的时间，输出
+            ctime = time(NULL);
+            tmp = localtime(&ctime);
+            strftime(time_buf,sizeof(time_buf),fmtbuf,tmp);
+            puts(time_buf); //将格式化时间写到标准输出，如果重定向了则输出到相应的fd
+            exit(0);
+    }
+    ```
+
+    输出结果：
+
+    ```bash
+    [tqx@localhost page6]$ make getopt	#编译
+    cc -D_XOPEN_SOURCE   -lcrypt  getopt.c   -o getopt
+    
+    [tqx@localhost page6]$ ./getopt -YmdHMS	#不带额外参数执行，结果输出到终端
+    2026 11 08 16 34 20
+    
+    [tqx@localhost page6]$ ./getopt -YmdHMS /tmp/getopt	#添加了额外参数，输出则会重定向到该文件
+    [tqx@localhost page6]$ cat !$	#查看文件内容
+    cat /tmp/getopt
+    2026 11 08 16 34 27
     ```
 
     

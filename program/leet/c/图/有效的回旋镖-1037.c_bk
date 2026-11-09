@@ -1,0 +1,75 @@
+/**
+1037. 有效的回旋镖
+简单
+相关标签
+premium lock icon
+相关企业
+提示
+给定一个数组 points ，其中 points[i] = [xi, yi] 表示 X-Y 平面上的一个点，如果这些点构成一个 回旋镖 则返回 true 。
+
+回旋镖 定义为一组三个点，这些点 各不相同 且 不在一条直线上 。
+
+ 
+
+示例 1：
+
+输入：points = [[1,1],[2,3],[3,2]]
+输出：true
+示例 2：
+
+输入：points = [[1,1],[2,2],[3,3]]
+输出：false
+ 
+
+提示：
+
+points.length == 3
+points[i].length == 2
+0 <= xi, yi <= 100
+  */
+#include <stdio.h>
+#include <stdlib.h>
+#include <setjmp.h>
+jmp_buf jb;
+int compare(const void * i1, const void * i2){
+	const int *v1 = *(int**)i1, *v2 = *(int**)i2;
+	if(v1[0] == v2[0] && v1[1] ==v2[1])
+		longjmp(jb,1);
+	return v1[0] <= v2[0];
+}
+
+bool isBoomerang(int** points, int pointsSize, int* pointsColSize) {
+	//如果都在x轴或者都在y轴，不符合
+	if((points[0][0] == points[1][0] && points[0][0] == points[2][0]) || \
+			(points[0][1] == points[1][1] && points[0][1] == points[2][1]))
+		return false;
+	if(!setjmp(jb)){
+	//不在一个平面,就看三点是否能连成一线
+	qsort(points,pointsSize,sizeof(int*),compare);
+	double div1 = -1.0f,div2 = -2.0f,div3 = -3.0f;
+	if(points[0][0] && points[0][1])
+		div1 = points[0][0] * 0.1f / points[0][1];
+	if(points[1][0] && points[1][1])
+		div2 = points[1][0] * 0.1f / points[1][1];
+	if(points[2][0] && points[2][1])
+		div3 = points[2][0] * 0.1f / points[2][1];
+	if(div1 != div2 && div1 != div3 && div2 != div3)
+		return true;
+	if(div1 == div2)
+		return div1 != div3;
+	if(div1 == div3)
+		return div1 != div2;
+	if(div2 == div3)
+		return div1 != div2;
+	return true;
+	}else
+		return false;
+}
+
+int main(){
+	int p1[]= {1,1},p2[] = {2,2},p3[] = {3,3};
+	int *points[] = {p1,p2,p3};
+	int pointsColSize = sizeof(p1) / sizeof(int);
+	fprintf(stdout,"%d\n",isBoomerang(points,sizeof(points) / sizeof(int *) ,&pointsColSize));
+	return 0;
+}

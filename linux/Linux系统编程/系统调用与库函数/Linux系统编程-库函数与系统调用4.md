@@ -562,4 +562,386 @@
 
   
 
-- 
+- #### 实现指令：`ls`功能，目前支持的选项有：`-a -l -i -n`
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <sys/stat.h>
+  #include <unistd.h>
+  #include <fcntl.h>
+  #include <string.h>
+  #include <sys/types.h>
+  #include <pwd.h>
+  #include <grp.h>
+  #include <glob.h>
+  #include <time.h>
+  /***********要查询的文件名最大数量****************/
+  #define REQUEST_PATH_SIZE 128
+  
+  /***********权限与时间字符串缓冲区的最小大小****************/
+  #define MODE_BUF_SZ_MIN 16
+  #define TIME_BUF_SZ_MIN 128
+  
+  /***********权限与时间字符串缓冲区的当前大小****************/
+  #define MODE_BUF_SIZ 16
+  #define TIME_BUF_SIZ 128
+  
+  /*********定义展示哪些字段的宏***************/
+  
+  //展示INODE号码
+  #define SHOW_INODE 001
+  //展示所有文件，包括隐藏文件
+  #define SHOW_ALL 002
+  //以列表形式展示，展示用户名与组名
+  #define SHOW_LIST 004
+  //列表展示，展示用户ID+GID
+  #define SHOW_IDS 010
+  
+  typedef unsigned long int show_flg_t;//选项的类型
+  
+  //宏函数，用于清空标志位
+  #define show_flag_clear(flg_name) flg_name = 0L
+  
+  //switch() 中的case语句
+  #define MODE_CASE(type,val)     case type :             \
+                                          ret = val;      \
+                                  break
+  
+  //实现ls功能，附加选项有-a -l -n -i
+  // -i :显示inode号码.
+  // -a:显示所有文件名，包括隐藏文件
+  // -l:列表形式显示，显示文件所属+组名
+  // -n：列表形式显示，显示文件属主ID+组ID
+  
+  //解析命令行参数
+  void parse_arguments(int argc,char * const * argv,const char *optstr,\
+                                    char **filepath,int *filepath_sizep,show_flg_t *show_flags);
+  //格式化时间，放入缓冲区
+  void format_time(char *time_buf,size_t bufsize,time_t t);
+  //格式化权限字符串，放入缓冲区
+  void config_mode(char *mode_buf,size_t modesize,mode_t mode);
+  //打印文件相关的内容
+  void print_file(int flags,struct stat *st,const char *filepath);
+  
+  /***********包裹函数***************/
+  int Lstat(const char *path, struct stat *buf);
+  struct passwd *Getpwuid(uid_t uid);
+  struct group *Getgrgid(gid_t gid);
+  int Chdir(const char *path);
+  char *Getcwd(char *buf,size_t sz);
+  int Glob(const char *pattern, int flags,
+                                  int (*errfunc) (const char *epath, int eerrno),
+                                                  glob_t *pglob);
+  
+  //实现自定义的功能myls ，可使用的选项：-l -n -i -a
+  int main(int argc,char **argv){
+          int i;
+          char *filepath[REQUEST_PATH_SIZE];//解析命令行得到的文件名数组
+          int filepath_size; //文件名个数
+          show_flg_t flags;	//选项位图
+          static struct stat st;
+          glob_t glb;
+          size_t j;
+          char *lineptr;//字符 / 在路径中最后出现的偏移量，作用于截取文件名
+          char *current_dirp; //记录当前目录
+          if(TIME_BUF_SIZ < TIME_BUF_SZ_MIN){
+                  fprintf(stderr,"Invalid sizeof(time_buf)! \n");
+                  exit(1);
+          }
+  
+          if(MODE_BUF_SIZ < MODE_BUF_SZ_MIN){
+                  fprintf(stderr,"Invalid sizeof(mode_buf)! \n");
+                  exit(1);
+          }
+      
+          //记录当前工作目录
+          current_dirp = Getcwd(NULL,0);
+  		
+      	//清空选项标志位，解析命令行参数
+          show_flag_clear(flags);
+          parse_arguments(argc,argv,"-lina",filepath,&filepath_size,&flags);
+  
+          //开始遍历文件路径的数组，逐个调用lstat(2)函数，获取它们的属性
+          for(i = 0;i < filepath_size;++i){
+                  Lstat(filepath[i],&st);
+  
+                  fprintf(stdout,"%s: \n",filepath[i]);
+  
+                  //如果是目录，打开目录获取下方值
+                  if(S_ISDIR(st.st_mode)){
+                          //改变工作目录到这个文件夹
+                          Chdir(filepath[i]);
+                      	//使用glob(3)获取该文件夹下的所有非文件
+                          Glob("*",0,NULL,&glb);
+                      
+                          //如果需要展示所有文件，那就追加隐藏文件
+                          if(flags & SHOW_ALL)
+                                  Glob(".*",GLOB_APPEND,NULL,&glb);
+                      
+                          //遍历所有文件名，获取它们的属性
+                          for(j = 0;j < glb.gl_pathc;++j){
+                                  Lstat(glb.gl_pathv[j],&st);
+                                  print_file(flags,&st,glb.gl_pathv[j]);
+                          }
+                      
+                          globfree(&glb);
+  
+                          //恢复工作目录
+                          Chdir(current_dirp);
+                  }
+                  else{
+                          //如果是文件，直接调用下方
+                          //按照 /截取文件名用于输出
+                          lineptr = strrchr(filepath[i],'/');
+                          if(lineptr) //存在 /,展示后面的文件名
+                                  print_file(flags,&st,lineptr + 1);
+                          else	//不存在 /,展示这个文件名
+                                  print_file(flags,&st,filepath[i]);
+                  }
+                  fprintf(stdout,"\n");
+          }
+          fprintf(stdout,"\n");
+          exit(0);
+  }
+  
+  int Chdir(const char *path){
+          int ret;
+          if((ret = chdir(path)) < 0){
+                  perror("chdir() error");
+                  exit(1);
+          }
+          return ret;
+  }
+  
+  char *Getcwd(char *buf,size_t sz){
+          char *ptr;
+          if(!(ptr = getcwd(buf,sz))){
+                  perror("getcwd() error");
+                  exit(1);
+          }
+          return ptr;
+  }
+  
+  int Glob(const char *pattern, int flags,
+                                  int (*errfunc) (const char *epath, int eerrno),
+                                          glob_t *pglob){
+          int ret;
+          if(ret = glob(pattern,flags,errfunc,pglob))
+                  perror("glob() error");
+          return ret;
+  }
+  
+  void print_file(int flags,struct stat *st,const char *filepath){
+          struct passwd *pwd;
+          struct group *grp;
+          char time_buf[TIME_BUF_SIZ];
+          char mode_buf[MODE_BUF_SIZ];
+          //拼接属性值
+          //1、是否获取INODE
+          if(flags & SHOW_INODE)
+                  fprintf(stdout,"%8lu ",st->st_ino);
+          if(flags & SHOW_LIST){
+                  //2、拼接权限
+                  memset(mode_buf,0,sizeof(mode_buf));
+                  config_mode(mode_buf,sizeof(mode_buf),st->st_mode);
+                  fprintf(stdout,"%s ",mode_buf);
+  
+                  //展示链接数
+                  fprintf(stdout,"%2lu ",st->st_nlink);
+  
+                  //有n选项就显示用户ID与组ID，否则显示用户名与组名
+                  if(flags & SHOW_IDS)
+                          fprintf(stdout,"%4lu %4lu ",st->st_uid,st->st_gid);
+                  else{  //显示用户名与组名
+                          pwd = Getpwuid(st->st_uid);
+                          grp = Getgrgid(st->st_gid);
+                          fprintf(stdout,"%s %s ",pwd->pw_name,grp->gr_name);
+                  }
+  
+                  //写入大小
+                  fprintf(stdout,"%5lu ",st->st_size);
+  
+                  //写入时间：这里是最后一次修改时间，以 月份 日 时:分形式
+                  format_time(time_buf,sizeof(time_buf),st->st_mtime);
+                  fprintf(stdout,"%s ",time_buf);
+                  //最后加入文件名，并添加换行
+                  fprintf(stdout,"%s\n",filepath);
+          }else
+                  //最后加入文件名，并添加换行
+                  fprintf(stdout,"%s ",filepath);
+  }
+  
+  struct tm *Localtime(const time_t *timep){
+          struct tm *tim;
+          if((tim = localtime(timep)) == NULL){
+                  perror("localtime() error");
+                  exit(1);
+          }
+          return tim;
+  }
+  
+  size_t Strftime(char *s, size_t max, const char *fmt,const struct tm *tm){
+          size_t sz;
+          if((sz = strftime(s,max,fmt,tm)) == 0){
+                  perror("strftime() error");
+                  exit(1);
+          }
+          return sz;
+  }
+  //辨别文件类型
+  int config_file_type(mode_t mode){
+          int ret;
+          switch(mode & S_IFMT){
+                  MODE_CASE(S_IFREG,'-');
+                  MODE_CASE(S_IFDIR,'d');
+                  MODE_CASE(S_IFCHR,'c');
+                  MODE_CASE(S_IFBLK,'b');
+                  MODE_CASE(S_IFIFO,'p');
+                  MODE_CASE(S_IFSOCK,'s');
+                  MODE_CASE(S_IFLNK,'l');
+                  default :
+                          fprintf(stderr,"参数出错，进程退出!\n");
+                          _exit(1);
+                  break;
+          }
+          return ret;
+  }
+  /**********************拼接权限字符串的宏************************************/
+  #define MODE_PERMISSION(type,val1,val2,index)   if(mode & (type))       \
+                                                   mode_buf[index] = val1;\
+                                                  else                    \
+                                                   mode_buf[index] = val2
+  
+  #define MODE_PERMISSION_SID(type1,type2,val1,val2,val3,index)  if((mode & (type1)) == 0)\
+                                                          mode_buf[index] =  val3;        \
+                                                     else if(mode & (type2))              \
+                                                          mode_buf[index] = val2;         \
+                                                     else                                 \
+                                                          mode_buf[index] = val1
+  
+  void config_mode(char *mode_buf,size_t modesize,mode_t mode){
+          mode_buf[0] = config_file_type(mode);
+          //当前用户权限
+          MODE_PERMISSION(S_IRUSR,'r','-',1);
+          MODE_PERMISSION(S_IWUSR,'w','-',2);
+          MODE_PERMISSION_SID(S_IXUSR,S_ISUID,'x','s','-',3);
+  
+          //组
+          MODE_PERMISSION(S_IRGRP,'r','-',4);
+          MODE_PERMISSION(S_IWGRP,'w','-',5);
+          MODE_PERMISSION_SID(S_IXGRP,S_ISGID,'x','s','-',6);
+  
+          //其他
+          MODE_PERMISSION(S_IROTH,'r','-',7);
+          MODE_PERMISSION(S_IWOTH,'w','-',8);
+          MODE_PERMISSION(S_IXOTH,'x','-',9);
+  
+          //粘着位
+          MODE_PERMISSION(S_ISVTX,'t',mode_buf[9],9);
+          mode_buf[10] = '.';
+  }
+  
+  void format_time(char *time_buf,size_t bufsize,time_t t){
+          struct tm *tmp;
+          tmp = Localtime(&t);
+          Strftime(time_buf,bufsize,"%b %e %H:%M",tmp);
+  }
+  
+  struct group *Getgrgid(gid_t gid){
+          struct group* grp;
+          if(!(grp = getgrgid(gid))){
+                  perror("getgrgid() error");
+                  exit(1);
+          }
+          return grp;
+  }
+  
+  struct passwd *Getpwuid(uid_t uid){
+          struct passwd *pwd;
+          if(!(pwd = getpwuid(uid))){
+                  perror("getpwuid() error");
+                  exit(1);
+          }
+          return pwd;
+  }
+  
+  int Lstat(const char *path, struct stat *buf){
+          int ret;
+          if((ret = lstat(path,buf)) < 0){
+                  perror("lstat() error");
+                  exit(1);
+          }
+          return ret;
+  }
+  
+  void parse_arguments(int argc,char * const * argv,const char *optstr,\
+                  char **filepath,int *filepath_sizep,show_flg_t *show_flags){
+          int size = 0;
+          int optval;
+          while((optval = getopt(argc,argv,optstr)) > 0){//getopt(3)解析选项，存在的将选项位置1
+                  switch(optval){
+                          case 'l':
+                                  *show_flags |= SHOW_LIST;
+                                  break;
+                          case 'i':
+                                  *show_flags |= SHOW_INODE;
+                                  break;
+                          case 'n':
+                                  *show_flags |= SHOW_IDS | SHOW_LIST;
+                                  break;
+                          case 'a':
+                                  *show_flags |= SHOW_ALL;
+                                  break;
+                          case 1 : //文件名，将其放入数组
+                                  filepath[size++] = argv[optind - 1];
+                                  break;
+                          default :
+                                  fprintf(stderr,"occur error..\n");
+                                  _exit(1);
+                                  break;
+                  }
+          }
+          //如果没有声明查询的文件名，将当前目录写入
+          if(!size)
+                  filepath[size++] = ".";
+          *filepath_sizep = size;
+          return;
+  }
+  ```
+
+  输出结果：
+
+  ```bash
+  $ ./a.out -lni  ..  .	#展示上级目录 & 当前目录的文件列表
+  ..:
+   1528772 drwxrwxrwx.  3 1000 1000   132 Nov  7 12:29 page3
+  55591093 drwxrwxrwx.  3 1000 1000   268 Nov  9 21:32 page4
+  55573487 drwxrwxrwx.  3 1000 1000   140 Nov  7 12:29 page5
+  19018418 drwxrwxrwx.  2 1000 1000   226 Nov  8 17:48 page6
+  35382892 drwxrwxrwx.  2 1000 1000   110 Nov  7 12:29 page7
+  52505446 drwxrwxrwx.  2 1000 1000   134 Nov  7 12:29 practise
+  
+  .:
+  55588412 -rw-rw-r--.  1 1000 1000    32 Nov  7 12:29 Makefile
+  55591076 -rwxrwxr-x.  1 1000 1000 20176 Nov  9 21:32 a.out
+  55591094 -rw-rw-r--.  1 1000 1000   624 Nov  7 12:29 bigfile.c
+  55591102 -rw-rw-r--.  1 1000 1000   418 Nov  7 12:29 flen_stat.c
+  55591103 -rw-rw-r--.  1 1000 1000   854 Nov  7 12:29 ftype-lstat.c
+  55573484 -rw-rw-r--.  1 1000 1000   853 Nov  7 12:29 ftype.c
+  55573485 -rw-rw-r--.  1 1000 1000  1052 Nov  7 12:29 glob.c
+   1528787 drwxrwxrwx.  3 1000 1000   132 Nov  7 12:29 lnk
+  55588413 -rw-rw-r--.  1 1000 1000  2954 Nov  7 12:29 mydu.c
+  55591075 -rwxrwxr-x.  1 1000 1000 13880 Nov  9 20:20 myls
+  55591078 -rw-rw-r--.  1 1000 1000  8251 Nov  9 21:32 myls.c
+  55588415 -rw-rw-r--.  1 1000 1000   177 Nov  7 12:29 open_rwx.c
+  55588414 -rw-rw-r--.  1 1000 1000  1014 Nov  7 12:29 opendir.c
+  55588416 -rw-rw-r--.  1 1000 1000   102 Nov  7 12:29 pattern.c
+  55588417 -rw-rw-r--.  1 1000 1000   348 Nov  7 12:29 suid.c
+  55588418 -rw-rw-r--.  1 1000 1000   197 Nov  7 12:29 trunc.c
+  55588419 -rw-rw-r--.  1 1000 1000   263 Nov  7 12:29 umask.c
+  ```
+
+  
+
+- ####  

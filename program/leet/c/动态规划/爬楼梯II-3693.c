@@ -1,0 +1,136 @@
+/**
+
+  代码
+  测试用例
+  测试用例
+  测试结果
+  3693. 爬楼梯 II
+  中等
+  premium lock icon
+  相关企业
+  提示
+  你正在爬一个有 n + 1 级台阶的楼梯，台阶编号从 0 到 n。
+
+  你还得到了一个长度为 n 的 下标从 1 开始 的整数数组 costs，其中 costs[i] 是第 i 级台阶的成本。
+
+  从第 i 级台阶，你 只能 跳到第 i + 1、i + 2 或 i + 3 级台阶。从第 i 级台阶跳到第 j 级台阶的成本定义为： costs[j] + (j - i)2
+
+  你从第 0 级台阶开始，初始 cost = 0。
+
+  返回到达第 n 级台阶所需的 最小 总成本。
+
+
+
+  示例 1:
+
+  输入：n = 4, costs = [1,2,3,4]
+
+  输出：13
+
+  解释：
+
+  一个最优路径是 0 → 1 → 2 → 4
+
+  跳跃	成本计算	成本
+  0 → 1	costs[1] + (1 - 0)2 = 1 + 1	2
+  1 → 2	costs[2] + (2 - 1)2 = 2 + 1	3
+  2 → 4	costs[4] + (4 - 2)2 = 4 + 4	8
+  因此，最小总成本为 2 + 3 + 8 = 13
+
+  示例 2:
+
+  输入：n = 4, costs = [5,1,6,2]
+
+  输出：11
+
+  解释：
+
+  一个最优路径是 0 → 2 → 4
+
+  跳跃	成本计算	成本
+  0 → 2	costs[2] + (2 - 0)2 = 1 + 4	5
+  2 → 4	costs[4] + (4 - 2)2 = 2 + 4	6
+  因此，最小总成本为 5 + 6 = 11
+
+  示例 3:
+
+  输入：n = 3, costs = [9,8,3]
+
+  输出：12
+
+  解释：
+
+  最优路径是 0 → 3，总成本 = costs[3] + (3 - 0)2 = 3 + 9 = 12
+
+
+
+提示:
+
+1 <= n == costs.length <= 105
+1 <= costs[i] <= 104
+ */
+#include <stdio.h>
+#include <stdlib.h>
+
+static inline int min(const int a,const int b){
+    return a <= b ? a : b;
+}
+
+#if 0
+//使用数组形式
+int climbStairs(int n, int* costs, int costsSize) {
+    int *dp;
+    int i,tmp1,tmp2,ret;
+    if(!(dp = malloc(sizeof(int) * (costsSize + 1)))){
+        perror("malloc() dp");
+        exit(1);
+    }
+    //申请每个指针指向的数组
+    //遍历costs数组，分2种状态讨论每阶情况
+    dp[0] = 0;
+    for(i = 1;i <= costsSize;++i){
+        //经过该点，需要计算从这倒着数三个点，从每个点跳过来的costs的最小值
+        tmp1 = dp[i - 1] + 1;
+        if(i - 2 >= 0){
+            tmp2 = dp[i - 2] + 4;
+            tmp1 = min(tmp1,tmp2);
+        }
+        if(i - 3 >= 0){
+            tmp2 = dp[i - 3] + 9;
+            tmp1 = min(tmp1,tmp2);
+        }
+        dp[i] = tmp1 + costs[i - 1];
+    }
+    ret = dp[costsSize];
+    free(dp);
+    return ret;
+}
+#endif
+
+//使用三个变量
+int climbStairs(int n, int* costs, int costsSize){
+    int i,prev1,prev2,prev3,cur,tmp;
+    prev1 = 0;
+    prev2 = prev3 = -1;
+    for(i = 0;i < costsSize;++i){
+        tmp = prev1 + 1;
+        if(prev2 >= 0)
+            tmp = min(tmp,prev2 + 4);
+        if(prev3 >= 0)
+            tmp = min(tmp,prev3 + 9);
+        cur = tmp + costs[i];
+        //指针前移
+        prev3 = prev2;
+        prev2 = prev1;
+        prev1 = cur;
+    }
+    return cur;
+}
+
+int main(){
+  //  int n = 4, costs[] = {1,2,3,4};
+//    int n = 4, costs[] = {5,1,6,2};
+    int n = 3, costs[] = {9,8,3};
+    fprintf(stdout,"%d\n",climbStairs(n,costs,sizeof(costs) / sizeof(int)));
+    return 0;
+}

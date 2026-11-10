@@ -129,14 +129,17 @@
     display abc
     #去掉第2项的display展示项
     disable display 2
-    #print指令是输出abc的值，只输出一次，不会钉在屏幕上
+    #print指令是输出abc的值，只输出一次，不会钉在屏幕上,print可以简写为 p
     print abc
     
     print x               # 打印变量x的值
     print/x x             # 以十六进制打印x
     print array[10]@5     # 打印数组从第10个元素开始的5个元素
     print *(int*)0x1234   # 打印内存地址0x1234处的整数值
-     
+    
+    print *arr@10 		  # 输出数组arr，以*arr地址开始，打印前10个元素
+    p arr[2]@5			  # 查看从第二个元素起的五个元素
+    p	*arr[0]@5		  # 查看指针数组 int **arr的第0个元素中的前5个元素
     set var x = 10        # 修改变量x的值为10
     set {int}0x1234 = 10  # 修改内存地址0x1234处的值为10
     ```

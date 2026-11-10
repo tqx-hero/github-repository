@@ -1,0 +1,15 @@
+" 定义的vimrc选项
+set tabstop=4       " 一个\t字符，屏幕显示占几列
+set shiftwidth=4    " >> <<、自动缩进、=格式化 一次移动多少
+set softtabstop=4   " 插入模式按 Tab / Backspace 一次跳几格
+set expandtab       " 按下 Tab，自动转为空格（推荐，跨平台不乱）
+set autoindent
+set cindent
+set mouse=a
+set nu
+set hlsearch
+set backspace=2
+set ruler
+set showmode
+set bg=light
+syntax on

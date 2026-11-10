@@ -27,8 +27,8 @@ typedef unsigned long int show_flg_t;
 #define show_flag_clear(flg_name) flg_name = 0L
 
 #define MODE_CASE(type,val)	case type :		\
-					ret = val;	\
-				break
+	ret = val;	\
+break
 
 //实现ls功能，附加选项有-a -l -n -i
 // -i :显示inode号码.
@@ -40,7 +40,7 @@ typedef unsigned long int show_flg_t;
 
 //解析命令行参数
 void parse_arguments(int argc,char * const * argv,const char *optstr,\
-		                  char **filepath,int *filepath_sizep,show_flg_t *show_flags);
+		char **filepath,int *filepath_sizep,show_flg_t *show_flags);
 //格式化时间，放入缓冲区
 void format_time(char *time_buf,size_t bufsize,time_t t);
 //格式化权限字符串，放入缓冲区
@@ -55,8 +55,8 @@ struct group *Getgrgid(gid_t gid);
 int Chdir(const char *path);
 char *Getcwd(char *buf,size_t sz);
 int Glob(const char *pattern, int flags,
-		                int (*errfunc) (const char *epath, int eerrno),
-				                glob_t *pglob);
+		int (*errfunc) (const char *epath, int eerrno),
+		glob_t *pglob);
 
 //实现自定义的功能myls ，可使用的选项：-l -n -i -a 
 int main(int argc,char **argv){
@@ -142,8 +142,8 @@ char *Getcwd(char *buf,size_t sz){
 }
 
 int Glob(const char *pattern, int flags,
-		                int (*errfunc) (const char *epath, int eerrno),
-			                glob_t *pglob){
+		int (*errfunc) (const char *epath, int eerrno),
+		glob_t *pglob){
 	int ret;
 	if(ret = glob(pattern,flags,errfunc,pglob))
 		perror("glob() error");
@@ -219,24 +219,24 @@ int config_file_type(mode_t mode){
 		MODE_CASE(S_IFSOCK,'s');
 		MODE_CASE(S_IFLNK,'l');
 		default :
-			fprintf(stderr,"参数出错，进程退出!\n");
-			_exit(1);
+		fprintf(stderr,"参数出错，进程退出!\n");
+		_exit(1);
 		break;
 	}
 	return ret;
 }
 
 #define MODE_PERMISSION(type,val1,val2,index)	if(mode & (type)) 	\
-						 mode_buf[index] = val1;\
-						else			\
-						 mode_buf[index] = val2
+	mode_buf[index] = val1;\
+else			\
+mode_buf[index] = val2
 
 #define MODE_PERMISSION_SID(type1,type2,val1,val2,val3,index)  if((mode & (type1)) == 0)\
-							mode_buf[index] =  val3;	\
-						   else if(mode & (type2))		\
-							mode_buf[index] = val2;		\
-						   else 				\
-							mode_buf[index] = val1
+										    mode_buf[index] =  val3;	\
+else if(mode & (type2))		\
+mode_buf[index] = val2;		\
+else 				\
+mode_buf[index] = val1
 void config_mode(char *mode_buf,size_t modesize,mode_t mode){
 	mode_buf[0] = config_file_type(mode);
 	//当前用户权限
@@ -253,7 +253,7 @@ void config_mode(char *mode_buf,size_t modesize,mode_t mode){
 	MODE_PERMISSION(S_IROTH,'r','-',7);
 	MODE_PERMISSION(S_IWOTH,'w','-',8);
 	MODE_PERMISSION(S_IXOTH,'x','-',9);	
-	
+
 	//粘着位
 	MODE_PERMISSION(S_ISVTX,'t',mode_buf[9],9);
 	mode_buf[10] = '.';

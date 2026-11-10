@@ -944,4 +944,94 @@
 
   
 
-- ####  
+- ####  解释器与解释文件：
+
+  ###### 解释文件：可执行的文本文件，首行格式为：
+
+  ```bash
+  #! pathname [optional-argument]	
+  ```
+
+  如通常写的`shell`脚本以：
+
+  ```bash
+  #! /bin/bash
+  ```
+
+  这个文件就是解释文件。
+
+  ###### 解释器：解释文件第一行中的`pathname`，就是解释器。通俗来说就是内核调用`exec(3)`函数时所指定的程序路径，后面当然可以带参数。
+
+  在执行解释文件时，`shell`进程会打开文件，读取文件中的解释器路径，`fork(2)`子进程，子进程调用`exec()`函数执行解释器，连同参数一并传入。这就是解释文件的工作过程。
+
+  demo：现有一个打印文件类型的源文件`ftype.c`：
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <sys/stat.h>
+  #include <sys/types.h>
+  #include <unistd.h>
+  //给一个文件名，返回它的文件类型
+  #define FILE_TYPE(__COMPARED,__RESVAL) case __COMPARED : \
+                                          res = __RESVAL; \
+                                          break
+  static int ftype(const char *fname);
+  
+  int main(int argc,char **argv){
+  
+          if(argc < 2)
+          {
+                  fprintf(stderr,"Usage main() : param invalid !\n");
+                  exit(EXIT_FAILURE);
+          }
+  
+          fprintf(stdout,"文件类型 : %c\n",ftype(argv[1]));
+          return 0;
+  }
+  
+  static int ftype(const char *fname){
+          struct stat st;
+          int res;
+          if(stat(fname,&st) < 0){
+                  perror("stat() error");
+                  exit(EXIT_FAILURE);
+          }
+  
+          switch(st.st_mode & S_IFMT){
+                  FILE_TYPE(S_IFLNK,'l');
+                  FILE_TYPE(S_IFREG,'r');
+                  FILE_TYPE(S_IFDIR,'d');
+                  FILE_TYPE(S_IFCHR,'c');
+                  FILE_TYPE(S_IFBLK,'b');
+                  FILE_TYPE(S_IFSOCK,'s');
+                  FILE_TYPE(S_IFIFO,'p');
+                  default :
+                          res = 'u';
+                          break;
+          }
+          return res;
+  }
+  ```
+
+  需要传入文件名作为参数，编译后可执行文件为`ftype`.
+
+  新建解释文件 `interpreter.sh`：
+
+  ```bash
+  #! /home/tqx/linux-learn/APUE/page4/ftype ftype.c
+  ```
+
+  写入的解释器为可执行程序`ftype`的绝对路径 ，并携带参数为要查询的文件名。
+
+  执行`.sh`文件：
+
+  ```bash
+  $ ./interpreter.sh
+  
+  文件类型 : r
+  ```
+
+  
+
+- 

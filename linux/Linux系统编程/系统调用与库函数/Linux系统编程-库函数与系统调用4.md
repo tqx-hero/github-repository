@@ -1034,4 +1034,194 @@
 
   
 
+- #### 实现自定义`shell`功能 `myshell.c`：
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  #include <sys/wait.h>
+  #include <string.h>
+  #include <glob.h>
+  //命令行截取的字符序列，用于strtok(3)按照该字符序列截取每个子串
+  #define CMD_LINE_SPLIT " \t\n"
+  #define EXIT_FIAG "exit"
+  #define LOGOUT_FLAG "logout"
+  /*******自定义myshell*********/
+  
+  //自定义命令行的结构体，便于扩展
+  typedef struct {
+      glob_t globres;
+  } cmd_t ;
+  
+  /*输出提示符*/
+  static void prompt(){
+      fprintf(stdout,"my-shell01$ ");
+      fflush(stdout);
+  }
+  
+  //解析输入的字符串，将其转化成argv风格的数组
+  static void parse_cmd(char *cmdp,cmd_t * cmd){
+      char *saveptr,*token;
+      char *lineptr = NULL;
+      size_t lsz = 0;
+      unsigned int i = 0;
+      while(1){
+          token = strtok_r(cmdp,CMD_LINE_SPLIT,&saveptr);//使用strtok(3)按照字符截取每个参数
+          if(!token)
+              break;
+          //解析这个字符串
+          //使用glob函数的GLOB_NOCHECK选项将字符串放入到字符串数组
+          if(glob(token,GLOB_NOCHECK | GLOB_APPEND * i ,NULL,&cmd->globres) < 0){
+              perror("glob()");
+              exit(1);
+          }
+          i = 1;
+          cmdp = NULL;
+      }
+      return;
+  }
+  
+  int main(int argc,char **argv){
+      pid_t pid;
+      static cmd_t cmd;
+      char *lineptr = NULL;
+      size_t lsz = 0,exit_len,out_len;
+      exit_len = strlen(EXIT_FIAG);
+      out_len = strlen(LOGOUT_FLAG);
+      while(1){
+          /****输入提示符********/
+          prompt();
+          if(getline(&lineptr,&lsz,stdin) < 0){
+              perror("getline() error");
+              exit(1);
+          }
+          //添加退出判断语句
+          if(strncasecmp(lineptr,EXIT_FIAG,exit_len) == 0 \
+                  || strncasecmp(lineptr,LOGOUT_FLAG,out_len) == 0 \
+                  || strncasecmp(lineptr,"q",1) == 0)
+              break;
+          /**解析字符串，以空格为分隔符，第一个参数必定是要可执行文件路径**/
+          parse_cmd(lineptr,&cmd);
+          if(0) //内部命令
+          {
+          }else //外部命令
+          {
+              //创建进程
+              if((pid = fork()) < 0){
+                  perror("fork()");
+                  exit(1);
+              }
+              if(pid == 0){
+                  execvp(cmd.globres.gl_pathv[0],cmd.globres.gl_pathv);
+                  perror("exec()");
+                  exit(1);
+              }
+              waitpid(-1,NULL,0);
+          }
+          globfree(&cmd.globres);
+      }
+      if(lineptr)
+          free(lineptr);
+      exit(0);
+  }
+  ```
+
+  
+
+- #### 获取/设置进程组ID:
+
+  ##### 描述
+
+  > Linux 提供以下全部接口，用于获取、设置进程的进程组 `ID（PGID）`。
+  >
+  > **`POSIX.1` 标准推荐优先使用：`getpgrp(void)` 获取调用进程的 `PGID`；`setpgid()` 修改进程的 `PGID`。**
+
+  > `setpgid()` 将 `pid` 指定进程的 `PGID` 设置为 `pgid`。若 `pid` 为 0，则指代调用进程自身；若 `pgid` 为 0，则将该进程的 PGID 设置等于它自己的 PID。如果用 `setpgid()` 将一个进程移入另一个进程组（部分 Shell 创建管道时就是这么做的），**两个进程组必须属于同一个会话**（参见 `setsid(2)`、`credentials(7)`）。这种场景下，`pgid` 代表一个已存在、将要加入的进程组，并且该进程组的会话 ID，必须和待加入进程的会话 ID 一致。
+
+  > `POSIX.1` 版本无参 `getpgrp()`：返回调用进程自身的 `PGID`。
+
+  > `getpgid()`：返回 `pid` 指定进程的 `PGID`；`pid` 为 0 时代表调用进程。（很少需要读取其他进程的 `PGID`；读取自身优先用 `POSIX` 的 `getpgrp()`）
+
+  > System V 风格无参 `setpgrp()`：等价于 `setpgid(0, 0)`。
+
+  > BSD 带参数版本 `setpgrp(pid, pgid)`：等价于 `setpgid(pid, pgid)`。
+
+  > BSD 单参 `getpgrp(pid)`：等价于 `getpgid(pid)`。
+
+  ##### 返回值
+
+  > `setpgid()`、`setpgrp()`：成功返回 0；失败返回 -1，并设置 `errno`。
+
+  > `POSIX` 无参 `getpgrp()`：永远返回调用者的进程组 ID，不会失败。
+
+  > `getpgid()`、BSD 带参 `getpgrp()`：成功返回进程组 ID；失败返回 -1，并设置 `errno`。
+
+  ```c
+  #include <unistd.h>
+  
+  int setpgid(pid_t pid, pid_t pgid);
+  pid_t getpgid(pid_t pid);
+  
+  pid_t getpgrp(void);                 /* POSIX.1 version */
+  pid_t getpgrp(pid_t pid);            /* BSD version */
+  
+  int setpgrp(void);                   /* System V version */
+  int setpgrp(pid_t pid, pid_t pgid);  /* BSD version */
+  ```
+
+  demo 1:
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  #include <sys/wait.h>
+  //获取进程组的ID
+  int main(){
+      pid_t pid,cid;
+      pid = getpgrp();
+      if(fork() == 0){
+          fprintf(stdout,"子进程pgid = %llu\n",pid);
+          fprintf(stdout,"子进程pgid1 = %llu\n",getpgid(0));
+          fprintf(stdout,"子进程pid = %llu\n",getpid());
+          exit(0);
+      }
+      if((cid = waitpid(-1,NULL,0)) > 0)
+          fprintf(stdout,"子进程ID = %llu\n",cid);
+      fprintf(stdout,"pgid = %llu\n",pid);
+      fprintf(stdout,"pgid1 = %llu\n",getpgid(0));
+      fprintf(stdout,"pid = %llu\n",getpid());
+      exit(0);
+  }
+  ```
+
+  demo 2:
+
+  ```c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  #include <sys/wait.h>
+  //设置进程组的ID
+  int main(){
+      pid_t cid;
+      if(fork() == 0){
+          //修改子进程自己的组ID
+          setpgid(0,0);
+          fprintf(stdout,"子进程pgid1 = %llu\n",getpgid(0));
+          fprintf(stdout,"子进程pid = %llu\n",getpid());
+          sleep(5);
+          exit(0);
+      }
+      if((cid = waitpid(-1,NULL,0)) > 0)
+          fprintf(stdout,"子进程ID = %llu\n",cid);
+      fprintf(stdout,"pgid1 = %llu\n",getpgid(0));
+      fprintf(stdout,"pid = %llu\n",getpid());
+      exit(0);
+  }
+  ```
+
+  
+
 - 

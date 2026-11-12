@@ -1159,9 +1159,42 @@
     }
     ```
 
+13. ##### 执行程序`system(3)`:
+
+    ###### 该函数等价于:`fork(2) + exec(3) + wait(3)`,返回值就是`wait(3)`的`status`,可以使用`wait`的那几个宏进行捕捉，原型如下：
+
+    ```c
+    #include <stdlib.h>
+    
+    int system(const char *command);
+    ```
+
+    ###### demo:
+
+    ```c
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <sys/wait.h>
+    // system(3)的用法，等价于:fork(2) + exec(3) + wait(2)
+    int main(int argc,char **argv){
+        int status;
+        if(argc < 2){
+            fprintf(stdout,"Usage main(): invalid argument <argv[1]>! \n");
+            exit(1);
+        }
+        
+        status = system(argv[1]);
+        if(WIFEXITED(status))
+            fprintf(stdout,"nornal exit ,code = %d\n",WEXITSTATUS(status));
+        else if(WIFSIGNALED(status))
+            fprintf(stdout,"intr by signal ,num = %d\n",WTERMSIG(status));
+        return 0;
+    }
+    ```
+
     
 
-13. ##### 获取文件描述符的文件名ttyname(3)：
+14. ##### 获取文件描述符的文件名ttyname(3)：
 
     ```c
     #include <unistd.h>
@@ -1195,12 +1228,14 @@
 
     
 
-14. ##### 守护进程：
+15. ##### 创建新会话`setsid(3)`：
 
     ```c
     #include <sys/types.h>
     #include <unistd.h>
-    //剥离当前进程与父进程的关系，创建一个新的会话，当前进程设置为组长
+    //创建新会话，返回新会话的SID。
+    //注意：调用进程不能是已有会话的leader，否则不会成功。
+    //创建后调用进程的PID成为新会话的SID，并且成为该会话的首领。断开与之前会话关联的控制终端，但是后续能够再打开 /dev/tty等终端文件获取终端，详细描述参考APUE第九章<会话&终端> 与 第13章<守护进程> 的阐述
     /**return : 
     	-1 : 创建失败，失败号码保存在errno
     	非-1： 创建成功，返回值为新的会话id
@@ -1208,56 +1243,9 @@
     pid_t setsid(void);
     ```
 
-    DEMO(设置子进程为守护进程，创建日志文件，每隔5秒往日志文件中添加hello world):
-
-    ```c
-      1 #include <stdio.h>
-      2 #include <stdlib.h>
-      3 #include <unistd.h>
-      4 #include <sys/types.h>
-      5 #include <sys/stat.h>
-      6 #include <fcntl.h>
-      7
-      8 int main(){
-      9         //fork创建子进程
-     10         pid_t pid;
-     11         if((pid = fork()) < 0)
-     12         {
-     13                 perror("");
-     14                 return -1;
-     15         }
-     16         //父进程退出
-     17         if(pid)
-     18                 return 0;
-     19         //子进程创建会话
-     20         setsid();
-     21         //改变工作目录到根目录(可选)
-     22         chdir("/");
-     23         //关闭文件描述符(可选)
-     24         close(0);
-     25         close(1);
-     26         close(2);
-     27         //设置进程的掩码(可选)
-     28         umask(0000);
-     29         //设置执行任务
-     30         //每5秒向日志文件中追加信息
-     31         int fd = open("/home/tqx/linux-learn/deamon/deamon.log",O_CREAT | O_WRONLY | O_APPEND,0644);
-     32         if(fd == -1){
-     33                 perror("");
-     34                 exit(-1);
-     35         }
-     36         char buf[] = "hello world\n";
-     37         while(1){
-     38                 write(fd,buf,sizeof(buf));
-     39                 sleep(5);
-     40         }
-     41         return 0;
-     42 }
-    ```
-
     
 
-15. ##### vfork(写时复制fork)(2):
+16. ##### vfork(写时复制fork)(2):
 
     ```c
     #include <sys/types.h>
@@ -1328,7 +1316,7 @@
 
     ***注意：*****必须使用_exit()函数，而不是exit()。前者为系统调用，后者为库函数，库函数有缓冲区，在退出时会刷新stdio的缓冲区，破坏父进程的数据。**
 
-16. ##### execve系统调用(2):
+17. ##### execve系统调用(2):
 
     ```c
     #include <unistd.h>
@@ -1390,7 +1378,7 @@
 
     
 
-17. ##### exec函数族(3)：
+18. ##### exec函数族(3)：
 
     ###### exec函数族都是库函数，均为在系统调用:execve(2)函数基础上进行的封装。
 
@@ -1614,7 +1602,7 @@
 
     - 
 
-18. ###### `chmod`修改文件的访问权限(`man 2 chmod`)：
+19. ###### `chmod`修改文件的访问权限(`man 2 chmod`)：
 
     ```c
     #include <sys/stat.h>
@@ -1647,7 +1635,7 @@
 
     
 
-19. ##### chown(2)修改文件的属主、属组：
+20. ##### chown(2)修改文件的属主、属组：
 
     ```c
     #include <unistd.h>
@@ -1674,7 +1662,7 @@
 
     
 
-20. ##### 测试文件是否存在access(2)：
+21. ##### 测试文件是否存在access(2)：
 
     > 注意：与open(2)的有效ID检测权限不同，access(2)是以用户的实际ID(即登录ID)来校验用户是否可以访问指定文件。至于有效ID一般情况下等于用户实际ID。
     >
@@ -1784,7 +1772,7 @@
 
     
 
-21. ##### 文件描述符的复制dup(2)：
+22. ##### 文件描述符的复制dup(2)：
 
     ```c
     #include <unistd.h>
@@ -1936,7 +1924,7 @@
 
     
 
-22. ##### gets/fgets(3):
+23. ##### gets/fgets(3):
 
     ```c
     #include <stdio.h>
@@ -1966,7 +1954,7 @@
 
     
 
-23. ##### puts/fputs(3),往文件流中放入字符、字符串:
+24. ##### puts/fputs(3),往文件流中放入字符、字符串:
 
     ```c
     #include <stdio.h>
@@ -1987,7 +1975,7 @@
 
     
 
-24. ##### mkdir(2)创建目录：
+25. ##### mkdir(2)创建目录：
 
     ```c
     #include <sys/stat.h>
@@ -2014,7 +2002,7 @@
 
     
 
-25. ##### rmdir(2)删除目录：
+26. ##### rmdir(2)删除目录：
 
     ###### 要删除的文件夹必须为空
 
@@ -2042,7 +2030,7 @@
 
     
 
-26. ##### chdir(2)改变工作目录：
+27. ##### chdir(2)改变工作目录：
 
     ```c
     #include <unistd.h>
@@ -2052,7 +2040,7 @@
 
     
 
-27. ##### getcwd(2)获取当前工作目录:
+28. ##### getcwd(2)获取当前工作目录:
 
     ```c
     #include <unistd.h>
@@ -2112,7 +2100,7 @@
 
     
 
-28. ##### mmap(2)地址映射：
+29. ##### mmap(2)地址映射：
 
     ```c
     #include <sys/mman.h>
@@ -2347,7 +2335,7 @@
 
     
 
-29. ##### 重新设置文件的大小truncate(2):
+30. ##### 重新设置文件的大小truncate(2):
 
     ###### 当文件小于length时，扩充\0;
 
@@ -2369,7 +2357,7 @@
 
     
 
-30. ##### 获取当前函数名：
+31. ##### 获取当前函数名：
 
     2种写法都不需要头文件，是编译器在词法分析时自动生成的局部变量。
 
@@ -2382,7 +2370,7 @@
 
     
 
-31. ##### main函数的参数解析getopt(3):
+32. ##### main函数的参数解析getopt(3):
 
     getopt () 函数用于解析命令行参数。它的参数 argc 和 argv 是程序启动时传递给 main () 函数的参数个数与参数数组。argv 中以 `-` 开头（且不等于单独的 `-` 或 `--`）的元素是选项元素。该元素内的字符（除去开头的 `-`）为选项字符。如果重复调用 getopt ()，它会依次返回各个选项元素中的每一个选项字符。
 
@@ -2587,7 +2575,7 @@
 
     
 
-32. ##### getopt_long(3):长命令解析
+33. ##### getopt_long(3):长命令解析
 
     用于解析长命令 " -- " 与短指令:
 

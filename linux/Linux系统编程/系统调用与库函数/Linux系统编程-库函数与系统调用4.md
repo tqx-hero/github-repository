@@ -1295,10 +1295,136 @@
       dup2(fd,STDIN_FILENO);
       dup2(fd,STDOUT_FILENO);
       dup2(fd,STDERR_FILENO);
-      close(fd);
+      if(fd != STDIN_FILENO && fd != STDOUT_FILENO && fd != STDERR_FILENO)
+  	    close(fd);
   
       while(1)
           pause();
+  }
+  ```
+
+  
+
+- #### 系统日志`syslog(3)`：
+
+  ```c
+  #include <syslog.h>
+  void openlog(const char *ident, int option, int facility);
+  void syslog(int priority, const char *format, ...);
+  void closelog(void);
+  
+  #include <stdarg.h>
+  void vsyslog(int priority, const char *format, va_list ap);
+  ```
+
+  > `openlog()` 为程序建立一条到系统日志服务的连接。`ident` 指向的字符串会被加到每一条日志消息头部，通常设为程序名。如果 `ident` 为 `NULL`，则默认使用程序名。（`POSIX.1-2008` 标准并未规定 `ident` 为 `NULL` 时的行为，属于 Linux 扩展）.
+  >
+  > 参数 `option` 是标志位，控制 `openlog()` 以及后续 `syslog()` 的行为。`facility` 设置一个默认日志设施类别：后续调用 `syslog()` 如果没有单独指定设施，就用这个默认值。`option` 和 `facility` 的可选取值见下文。 `openlog()` 本身是可选的；如果需要，`syslog()` 内部会自动调用它，这种情况下 `ident` 默认是 `NULL`。
+  >
+  > `syslog()` 生成一条日志消息，由 `syslogd`（系统日志守护进程）分发处理。 `priority`（优先级）由 **设施 (facility) | 日志级别 (level)** 按位或组合而成（后面说明）。 后面参数和 `printf` 类似：格式化字符串 + 可变参数。有一个特殊占位符：`%m`，它会自动替换成 `strerror(errno)` 对应的错误描述文本。日志接口会按需自动追加末尾换行符，不需要你手动加 `\n`。
+  >
+  > `vsyslog()` 的功能和 `syslog()` 完全一致；区别在于它接收的是已经通过 `stdarg` 可变参数宏解析好的 `va_list`，适合封装日志函数时使用。
+
+  ##### 一、option —— `openlog()` 的 `option` 参数（可用 `|` 按位或组合）
+
+  表格
+
+  | 常量         | 含义（中文翻译）                                             | 备注                                 |
+  | ------------ | ------------------------------------------------------------ | ------------------------------------ |
+  | `LOG_CONS`   | 向系统日志发送出错时，直接把消息写入系统控制台               | 兜底输出通道                         |
+  | `LOG_NDELAY` | 立即建立连接（通常是在记录第一条消息时才建立连接）           | 立即打开 `/dev/log`                  |
+  | `LOG_NOWAIT` | 记录消息时不等待可能创建的 子进程                            | glibc 不创建 子进程，Linux 上无效    |
+  | `LOG_ODELAY` | 与 `LOG_NDELAY` 相反，连接延迟到首次调用 `syslog()` 时才建立 | **默认值**，无需显式指定             |
+  | `LOG_PERROR` | 同时把消息打印到 `stderr`                                    | 非 POSIX（POSIX.1-2001/2008 未包含） |
+  | `LOG_PID`    | 每条消息附加记录进程 PID                                     | 常用于多进程服务区分来源             |
+
+  ##### 二、facility —— 消息来源类型（设施）
+
+  表格
+
+  | 常量                        | 含义                               | 说明                     |
+  | --------------------------- | ---------------------------------- | ------------------------ |
+  | `LOG_AUTH`                  | 安全 / 认证相关消息                | 登录、su 等              |
+  | `LOG_AUTHPRIV`              | 安全 / 认证相关消息（私有）        | 仅授权用户可读           |
+  | `LOG_CRON`                  | 时钟守护进程（`cron` 与 `at`）     | 定时任务                 |
+  | `LOG_DAEMON`                | 没有单独 facility 值的系统守护进程 | 通用后台服务             |
+  | `LOG_FTP`                   | ftp 守护进程                       | —                        |
+  | `LOG_KERN`                  | 内核消息                           | **不能由用户态进程产生** |
+  | `LOG_LOCAL0` ~ `LOG_LOCAL7` | 保留给本地自定义使用               | 共 8 个，配置最灵活      |
+  | `LOG_LPR`                   | 行式打印机子系统                   | —                        |
+  | `LOG_MAIL`                  | 邮件子系统                         | —                        |
+  | `LOG_NEWS`                  | USENET 新闻子系统                  | —                        |
+  | `LOG_SYSLOG`                | `syslogd(8)` 自身内部产生的消息    | 日志系统自己             |
+  | `LOG_USER`                  | 通用用户态消息                     | **默认值**               |
+  | `LOG_UUCP`                  | UUCP 子系统                        | —                        |
+
+  > facility 的意义：让 `syslog.conf` / `rsyslog.conf` 能按不同来源分别配置处理策略（不同文件、不同转发、不同丢弃规则）。
+
+  ##### 三、level —— 消息重要性（按重要性从高到低）
+
+  表格
+
+  | 序号 | 常量          | 含义             | 典型场景                   |
+  | ---- | ------------- | ---------------- | -------------------------- |
+  | 0    | `LOG_EMERG`   | 系统已不可用     | 严重宕机、panic            |
+  | 1    | `LOG_ALERT`   | 必须立即采取行动 | 磁盘即将写满、数据库不可用 |
+  | 2    | `LOG_CRIT`    | 临界状况         | 关键硬件故障               |
+  | 3    | `LOG_ERR`     | 错误状况         | 调用失败、资源申请失败     |
+  | 4    | `LOG_WARNING` | 警告状况         | 可恢复异常、参数异常       |
+  | 5    | `LOG_NOTICE`  | 正常但重要的情况 | 配置重载、服务启停         |
+  | 6    | `LOG_INFO`    | 提示性信息       | 常规流程记录               |
+  | 7    | `LOG_DEBUG`   | 调试级消息       | 开发 / 排障期临时打开      |
+
+  > 数值越小，优先级越高。`priority = facility | level`。
+
+  ##### 四、配套：`setlogmask(3)` 级别过滤
+
+  表格
+
+  | 宏 / 函数                        | 作用                                                         |
+  | -------------------------------- | ------------------------------------------------------------ |
+  | `setlogmask(mask)`               | 设置日志掩码，只有掩码中置位的级别会被真正输出               |
+  | `LOG_MASK(pri)`                  | 生成 “只包含某单一级别” 的掩码位                             |
+  | `LOG_UPTO(pri)`                  | 生成 “从 `LOG_EMERG` 到 `pri`（含）” 的掩码，屏蔽更低优先级之外的？准确说法：屏蔽比 `pri` 更低重要性的级别 |
+  | `setlogmask(LOG_UPTO(LOG_INFO))` | 只输出 `EMERG`~`INFO`，`LOG_DEBUG` 被丢弃（常见生产配置）    |
+
+  demo:
+
+  ```c
+  #include <syslog.h>
+  #include <stdio.h>
+  #include <unistd.h>
+  #include <fcntl.h>
+  #define PRO_NAME "mysyslog"
+  //syslog()的使用
+  int main(){
+      //1、直接使用syslog(3)
+      /*
+         if(open("./name12.txt",O_RDONLY)){
+         syslog(LOG_ERR | LOG_USER,"open file \"./name12.txt\" error : %m");
+         return -1;
+         }
+         */
+  
+      //2、使用openlog(3)，给日志输出进行适当配置
+      /*
+         openlog(PRO_NAME,LOG_PID | LOG_CONS,LOG_USER);
+         if(open("./name12.txt",O_RDONLY)){
+         syslog(LOG_ERR | LOG_USER,"open file \"./name12.txt\" error : %m");
+         return -1;
+         }
+         */
+  
+      //3、设置了日志掩码
+      openlog(PRO_NAME,LOG_PID | LOG_CONS,LOG_USER);
+      int oldmask = setlogmask(LOG_UPTO(LOG_ERR));
+      printf("原掩码 = %d\n",oldmask);
+      if(open("./name12.txt",O_RDONLY)){
+          syslog(LOG_ERR | LOG_USER,"open file \"./name12.txt\" [level: LOG_ERR] : %m");
+          syslog(LOG_WARNING | LOG_USER,"open file \"./name12.txt\" [level: LOG_WARNING] : %m");
+          return -1;
+      }
+      return 0;
   }
   ```
 

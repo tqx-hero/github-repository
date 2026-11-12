@@ -5,7 +5,8 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <fcntl.h>
-#define RETARGET_FILE_NAME "/dev/null"
+#include <syslog.h>
+#define RETARGET_FILE_NAME "/tmp/deamon-out"
 //创建守护进程
 //1、fork()子进程，父进程退出
 //2、子进程设置文件创建掩码umask，这一步是为了守护进程需要创建文件时所使用
@@ -17,7 +18,31 @@
 //6、改变进程工作目录，这样做避免进程挂载到的目录无法卸载。
 //7、关闭文件描述符0、1、2.严谨一点的，关闭所有文件描述符表的fd，具体描述符表大小通过sysconf(3)获取
 //或者将0、1、2描述符重定向到/dev/null
+
+//创建守护进程
+static void mydeamon(void);
+
 int main(){
+    FILE *fdp;
+    int i;
+    mydeamon();
+
+    if((fdp = fopen(RETARGET_FILE_NAME,"w")) == NULL){
+        syslog(LOG_ERR | LOG_USER,"fopen error : %m");
+        exit(1);
+    }
+
+    for(i = 0;i < 10086;++i){
+        fprintf(fdp,"%d\n",i);
+        fflush(fdp);
+        usleep(100 * 1000);
+    }
+
+    while(1)
+        pause();
+}
+
+static void mydeamon(void){
     pid_t pid;
     int fd;
     umask(0);//设置文件掩码
@@ -57,7 +82,7 @@ int main(){
     }
 
     //重定向文件描述符0、1、2
-    fd = open(RETARGET_FILE_NAME,O_RDWR);
+    fd = open("/dev/null",O_RDWR);
     if(fd < 0){
         perror("open()");
         exit(1);
@@ -66,8 +91,7 @@ int main(){
     dup2(fd,STDIN_FILENO);
     dup2(fd,STDOUT_FILENO);
     dup2(fd,STDERR_FILENO);
-    close(fd);
-
-    while(1)
-        pause();
-}
+    if(fd != STDIN_FILENO && fd != STDOUT_FILENO && fd != STDERR_FILENO)
+        close(fd);
+    return;
+} 

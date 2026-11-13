@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
+#include <errno.h>
 //测试变换缓冲区大小对文件复制的效率影响
 #define BUF_SIZE BUFSIZ 
 //传递2个参数，分别代表要复制的文件与复制到的地方
@@ -16,24 +17,33 @@ int main(int argc,char **argv){
 		exit(EXIT_FAILURE);
 	}
 
-	sfd = open(argv[1],O_RDONLY);
-	if(sfd < 0){
-		perror("open argv[1] error");
-		goto fail_ret;
-	}
+    do{
+        sfd = open(argv[1],O_RDONLY);
+        if(sfd < 0){
+            if(errno != EINTR){
+                perror("open argv[1] error");
+                goto fail_ret;
+            }
+        }
+    }while(sfd < 0);
 
-	dfd = open(argv[2],O_WRONLY | O_CREAT | O_TRUNC,0600);
-	if(dfd < 0){
-		perror("open argv[2] error");
-		goto fail_ret;
-	}
-	
+    do{
+        dfd = open(argv[2],O_WRONLY | O_CREAT | O_TRUNC,0600);
+        if(dfd < 0){
+            if(errno != EINTR){
+                perror("open argv[2] error");
+                goto fail_ret;
+            }
+        }
+    }while(dfd < 0);
 	//统计时间
 	start_time = time(NULL);
 
 	while(1){
 		bytes = read(sfd,buf,sizeof(buf));
 		if(bytes < 0){
+            if(errno == EINTR)
+                continue;
 			perror("read error");
 			goto fail_ret;
 		}
@@ -43,6 +53,8 @@ int main(int argc,char **argv){
 		while(1){
 			res = write(dfd,buf + res,bytes);
 			if(res <= 0){
+                if(res < 0 && errno == EINTR)
+                    continue;
 				perror("write error");
 				goto fail_ret;
 			}

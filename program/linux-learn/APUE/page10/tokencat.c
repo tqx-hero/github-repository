@@ -11,7 +11,7 @@
 
 //令牌桶功能
 //令牌数
-static volatile int token = 0;
+static volatile sig_atomic_t token;
 
 //SIGALRM信号捕获
 static void alrm_handler(int signum){

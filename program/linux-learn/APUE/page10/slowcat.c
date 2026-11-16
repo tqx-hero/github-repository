@@ -2,18 +2,21 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <time.h>
+#include <sys/time.h>
 #include <errno.h>
 #include <signal.h>
+#include <string.h>
 #define CPS 10
 #define BUF_SIZE CPS 
 //实现慢放的功能,使用信号的方式代替sleep()
 
-static volatile int loop = 1;
+static volatile sig_atomic_t loop = 1;
+static struct itimerval oldtimer;
 static void alrm_handler(int signum){
     loop = 0;
-    alarm(1);
 }
+
+static void uninstall(void);
 
 //漏桶的实现
 int main(int argc,char **argv){
@@ -40,7 +43,16 @@ int main(int argc,char **argv){
         perror("signal()");
         goto fail_ret;
     }
-    alarm(1);
+//    alarm(1);
+    struct itimerval newtimer;
+    memset(&newtimer,0,sizeof(newtimer));
+    newtimer.it_value.tv_sec = 1;
+    newtimer.it_interval.tv_sec = 1;
+    if(setitimer(ITIMER_REAL,&newtimer,&oldtimer) < 0){
+        perror("setitimer()");
+        exit(1);
+    }
+    atexit(uninstall);
 
     while(1){
         while(loop)
@@ -77,4 +89,10 @@ fail_ret:
     if(sfd >= 0)
         close(sfd);
     exit(EXIT_FAILURE);
+}
+
+static void uninstall(void){
+    if(setitimer(ITIMER_REAL,&oldtimer,NULL) < 0)
+        perror("uninstall setitimer()");
+    return;
 }

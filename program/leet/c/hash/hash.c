@@ -22,7 +22,7 @@ HASH_MAP_PTR hashInit(int capacity) {
     int size = max(capacity, 11);
     HASH_MAP_PTR map = malloc(sizeof(HashMap) + size * sizeof(HashNode *));
     if (!map) {
-        printf("%s\n", strerror(errno));
+        perror("malloc()");
         return NULL;
     }
     map->size = size;
@@ -74,11 +74,11 @@ void hashRemove(HASH_MAP_PTR map, int key) {
             HashNode *del = *p;
             *p = (*p)->next;
             free(del);
+            map->count--;
             return;
         }
         p = &(*p)->next;
     }
-    map->count--;
 }
 
 // 释放整张哈希表

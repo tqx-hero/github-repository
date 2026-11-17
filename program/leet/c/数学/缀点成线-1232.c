@@ -38,12 +38,6 @@ bool checkStraightLine(int** coordinates, int coordinatesSize, int* coordinatesC
     int i;
     int subx,suby;
     //如果x轴相同或者y轴相同，相同
-    for(i = 1 ;i < coordinatesSize && coordinates[i][0] == coordinates[i - 1][0];++i);
-    if(i == coordinatesSize)
-        return true;
-    for(i = 1 ;i < coordinatesSize && coordinates[i][1] == coordinates[i - 1][1];++i);
-    if(i == coordinatesSize)
-        return true;
     //如果不相同，就计算两个坐标的(y2 - y1) / (x2 - x1),相同则返回相同，出现不同则失败
     subx = coordinates[1][0] - coordinates[0][0];
     suby = coordinates[1][1] - coordinates[0][1];

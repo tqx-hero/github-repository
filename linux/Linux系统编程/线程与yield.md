@@ -917,3 +917,15 @@ int main(){
 }
 ```
 
+
+
+#### 主动让出调度器`sched_yield(3)`：
+
+```c
+#include <sched.h>
+
+int sched_yield(void);
+```
+
+`sched_yield()` 强制当前正在运行的线程让出处理器，直到该线程再次成为它所在线程队列的队首；无参数。 成功返回 `0`；失败返回 `-1`，并设置 `errno`。
+
